@@ -8,12 +8,14 @@ import matplotlib.pyplot as plt
 from scipy.ndimage import rotate
 
 np.random.seed(100000)
-#sample rates
-#pressure mat-15Hz,(32 rows 16 columns)
-#depth camera-15Hz, (40 rows 30 columns)
-#acclerometers-100Hz
 
-#feature indices: 0-pm, 1-dc, 2-act, 3-acw
+
+# sample rates
+# pressure mat-15Hz,(32 rows 16 columns)
+# depth camera-15Hz, (40 rows 30 columns)
+# acclerometers-100Hz
+
+# feature indices: 0-pm, 1-dc, 2-act, 3-acw
 
 class MexPreprocessing:
     activityList = ["01", "02", "03", "04", "05", "06", "07"]
@@ -36,7 +38,7 @@ class MexPreprocessing:
                 temp_data = []
                 reader = csv.reader(open(data_file, "r"), delimiter=",")
                 for row in reader:
-                    if(len(row) == 513):
+                    if (len(row) == 513):
                         temp = [dt.datetime.strptime(row[0], '%Y-%m-%d %H:%M:%S.%f')]
                         temp.extend([float(f) for f in row[1:]])
                         temp_data.append(temp)
@@ -48,10 +50,10 @@ class MexPreprocessing:
         times_dict = {}
         for subject in pm_data:
             subject_dict = pm_data[subject]
-            subject_times ={}
+            subject_times = {}
             for activity in subject_dict:
                 activity_dict = subject_dict[activity]
-                subject_times[activity] = [activity_dict[0][0], activity_dict[len(activity_dict)-1][0]]
+                subject_times[activity] = [activity_dict[0][0], activity_dict[len(activity_dict) - 1][0]]
             times_dict[subject] = subject_times
         return times_dict
 
@@ -68,18 +70,18 @@ class MexPreprocessing:
                 temp_data = []
                 reader = csv.reader(open(data_file, "r"), delimiter=",")
                 for row in reader:
-                    if(len(row) == 76801):
+                    if (len(row) == 76801):
                         tt = dt.datetime.strptime(row[0], '%Y-%m-%d %H:%M:%S.%f')
                         if subject in self.subjects_15_second_gap:
                             tt = tt + dt.timedelta(seconds=-15)
                         temp = [tt]
                         _temp = [float(f) for f in row[1:]]
                         _temp = np.array(_temp)
-                        _temp = np.reshape(_temp, (240,320))
+                        _temp = np.reshape(_temp, (240, 320))
                         _temp = ski.block_reduce(_temp, (2, 2), func=np.mean)
                         _temp = ski.block_reduce(_temp, (2, 2), func=np.mean)
-                        #_temp = ski.block_reduce(_temp, (2, 2), func=np.mean)
-                        _temp = np.ndarray.tolist(np.reshape(_temp, (1,4800)))[0]
+                        # _temp = ski.block_reduce(_temp, (2, 2), func=np.mean)
+                        _temp = np.ndarray.tolist(np.reshape(_temp, (1, 4800)))[0]
                         _temp = [float("{0:.4f}".format(x)) for x in _temp]
                         temp.extend(_temp)
                         temp_data.append(temp)
@@ -96,7 +98,7 @@ class MexPreprocessing:
             temp_data = []
             reader = csv.reader(open(data_file, "r"), delimiter=",")
             for row in reader:
-                if(len(row) == 4):
+                if (len(row) == 4):
                     temp = [dt.datetime.strptime(row[0], '%Y-%m-%d %H:%M:%S.%f')]
                     _temp = [float(f) for f in row[1:]]
                     temp.extend(_temp)
@@ -150,15 +152,15 @@ class MexPreprocessing:
         for subject in data:
             activities = data[subject]
             for activity in activities:
-                print(str(subject)+','+str(activity)+','+str(len(activities[activity])))
+                print(str(subject) + ',' + str(activity) + ',' + str(len(activities[activity])))
 
     def find_index(self, _data, _time_stamp):
-        return [_index for _index,_item in enumerate(_data) if _item[0] >= _time_stamp][0]
+        return [_index for _index, _item in enumerate(_data) if _item[0] >= _time_stamp][0]
 
     def split_windows(self, data, increment, window):
         inputs = []
         start = data[0][0]
-        end = data[len(data)-1][0]
+        end = data[len(data) - 1][0]
         _increment = dt.timedelta(seconds=increment)
         _window = dt.timedelta(seconds=window)
         start_index = 0
@@ -203,34 +205,33 @@ class MexPreprocessing:
                     input_lengths.append(len(_inputs))
                 min_length = min(input_lengths)
                 _inputs_ = [ins[:min_length] for ins in inputs]
-                for item1,item2,item3,item4 in zip(_inputs_[0],_inputs_[1],_inputs_[2],_inputs_[3]):
-                    features.append([item1,item2,item3,item4])
+                for item1, item2, item3, item4 in zip(_inputs_[0], _inputs_[1], _inputs_[2], _inputs_[3]):
+                    features.append([item1, item2, item3, item4])
                 _activities[act] = features
             all_features[subject] = _activities
         return all_features
 
     def pad(self, data, length):
         pad_length = []
-        if length%2 == 0:
-            pad_length = [int(length / 2), int(length/2)]
+        if length % 2 == 0:
+            pad_length = [int(length / 2), int(length / 2)]
         else:
-            pad_length = [int(length/2)+1, int(length/2)]
+            pad_length = [int(length / 2) + 1, int(length / 2)]
         new_data = []
         for index in range(pad_length[0]):
             new_data.append(data[0])
         new_data.extend(data)
         for index in range(pad_length[1]):
-            new_data.append(data[len(data)-1])
+            new_data.append(data[len(data) - 1])
         return new_data
-
 
     def reduce(self, data, length):
         red_length = []
-        if length%2 == 0:
-            red_length = [int(length / 2), int(length/2)]
+        if length % 2 == 0:
+            red_length = [int(length / 2), int(length / 2)]
         else:
-            red_length = [int(length/2)+1, int(length/2)]
-        new_data = data[red_length[0]:len(data)-red_length[1]]
+            red_length = [int(length / 2) + 1, int(length / 2)]
+        new_data = data[red_length[0]:len(data) - red_length[1]]
         return new_data
 
     def pad_features(self, _features):
@@ -246,7 +247,7 @@ class MexPreprocessing:
                     for _min, _item in zip(self.min_pad_lengths, item):
                         _len = len(_item)
                         if _len < _min:
-                           break
+                            break
                         item_lengths.append(_len)
                     if len(item_lengths) == 4:
                         new_items = []
@@ -291,10 +292,10 @@ class MexPreprocessing:
         dc_data = self.read_dc("E:\\Mex\\Data\\1\\dc\\")
         acw_data = self.read_ac("E:\\Mex\\Data\\1\\acw\\")
         act_data = self.read_ac("E:\\Mex\\Data\\1\\act\\")
-        #pm_data = self.read_pm('C:\\DCBackup\\smalltest\\pm\\')
-        #dc_data = self.read_dc('C:\\DCBackup\\smalltest\\dc\\')
-        #act_data = self.read_ac('C:\\DCBackup\\smalltest\\act\\')
-        #acw_data = self.read_ac('C:\\DCBackup\\smalltest\\acw\\')
+        # pm_data = self.read_pm('C:\\DCBackup\\smalltest\\pm\\')
+        # dc_data = self.read_dc('C:\\DCBackup\\smalltest\\dc\\')
+        # act_data = self.read_ac('C:\\DCBackup\\smalltest\\act\\')
+        # acw_data = self.read_ac('C:\\DCBackup\\smalltest\\acw\\')
         times_dict = self.extract_times(pm_data)
 
         dc_data = self.strip_dc(dc_data, times_dict)
@@ -325,7 +326,3 @@ class MexPreprocessing:
         for item in features:
             new_features.append([ite for index, ite in enumerate(item) if index in [sensor_indices]])
         return new_features
-
-
-
-

@@ -7,14 +7,16 @@ import os
 
 np.random.seed(1234)
 
+
 def write_data(file_path, data):
-    if(os.path.isfile(file_path)):
+    if (os.path.isfile(file_path)):
         f = open(file_path, 'a')
-        f.write(data+'\n')
+        f.write(data + '\n')
     else:
         f = open(file_path, 'w')
-        f.write(data+'\n')
+        f.write(data + '\n')
     f.close()
+
 
 def build_pm_model(class_length):
     _input = Input(shape=(75, 32, 16, 1))
@@ -27,18 +29,20 @@ def build_pm_model(class_length):
 
     flatten = Flatten()(_conv)
 
-    dense_layer = Dense(600, activation = 'tanh')(flatten)
-    dense_layer = Dense(100, activation = 'tanh')(dense_layer)
-    dense_layer = Dense(class_length, activation = 'softmax')(dense_layer)
+    dense_layer = Dense(600, activation='tanh')(flatten)
+    dense_layer = Dense(100, activation='tanh')(dense_layer)
+    dense_layer = Dense(class_length, activation='softmax')(dense_layer)
 
     model = Model(inputs=_input, outputs=dense_layer)
     print(model.summary())
     return model
 
+
 def get_hold_out_users(users):
-    indices = np.random.choice(len(users), int(len(users)/2), False)
-    test_users = [u for indd,u in enumerate(users) if indd in indices]
+    indices = np.random.choice(len(users), int(len(users) / 2), False)
+    test_users = [u for indd, u in enumerate(users) if indd in indices]
     return test_users
+
 
 def run():
     write_path = 'E:\\Mex\\results\\3.txt'
@@ -50,8 +54,8 @@ def run():
 
     all_data = mex.get_features(all_data, increment=2, window=5)
 
-    train_data = {key:value for key, value in all_data.items() if key not in test_subjects}
-    test_data = {key:value for key, value in all_data.items() if key in test_subjects}
+    train_data = {key: value for key, value in all_data.items() if key not in test_subjects}
+    test_data = {key: value for key, value in all_data.items() if key in test_subjects}
 
     class_length = len(mex.activityList)
 
@@ -69,7 +73,8 @@ def run():
 
     pm_train_features = np.array(pm_train_features)
     print(pm_train_features.shape)
-    pm_train_features = np.reshape(pm_train_features, (pm_train_features.shape[0], pm_train_features.shape[1], pm_train_features.shape[2], 32, 16))
+    pm_train_features = np.reshape(pm_train_features, (
+    pm_train_features.shape[0], pm_train_features.shape[1], pm_train_features.shape[2], 32, 16))
     print(pm_train_features.shape)
     pm_train_features = np.swapaxes(pm_train_features, 1, 4)
     print(pm_train_features.shape)
@@ -79,7 +84,8 @@ def run():
     print(pm_train_features.shape)
     pm_test_features = np.array(pm_test_features)
     print(pm_test_features.shape)
-    pm_test_features = np.reshape(pm_test_features, (pm_test_features.shape[0], pm_test_features.shape[1], pm_test_features.shape[2], 32, 16))
+    pm_test_features = np.reshape(pm_test_features, (
+    pm_test_features.shape[0], pm_test_features.shape[1], pm_test_features.shape[2], 32, 16))
     print(pm_test_features.shape)
     pm_test_features = np.swapaxes(pm_test_features, 1, 4)
     print(pm_test_features.shape)
@@ -95,9 +101,11 @@ def run():
 
     pm_model = build_pm_model(class_length=class_length)
     pm_model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
-    pm_model.fit(pm_train_features, train_labels, verbose=1, batch_size = 50, epochs = 10, shuffle = True)
-    pm_score = pm_model.evaluate(pm_test_features, test_labels, batch_size = 50, verbose=1)
-    pm_result = str(pm_score[0])+','+str(pm_score[1])
+    pm_model.fit(pm_train_features, train_labels, verbose=1, batch_size=50, epochs=10, shuffle=True)
+    pm_score = pm_model.evaluate(pm_test_features, test_labels, batch_size=50, verbose=1)
+    pm_result = str(pm_score[0]) + ',' + str(pm_score[1])
     print(pm_result)
     write_data(write_path, pm_result)
+
+
 run()
