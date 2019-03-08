@@ -82,7 +82,7 @@ class MexPreprocessing:
                         _temp = ski.block_reduce(_temp, (2, 2), func=np.mean)
                         # _temp = ski.block_reduce(_temp, (2, 2), func=np.mean)
                         _temp = np.ndarray.tolist(np.reshape(_temp, (1, 4800)))[0]
-                        _temp = [float("{0:.4f}".format(x)) for x in _temp]
+                        _temp = [float(x) for x in _temp]
                         temp.extend(_temp)
                         temp_data.append(temp)
                 activity_dict[activity_id] = temp_data
@@ -303,6 +303,13 @@ class MexPreprocessing:
         acw_data = self.strip_ac(acw_data, times_dict)
 
         return [pm_data, dc_data, act_data, acw_data]
+
+    def get_dc_data(self):
+        pm_data = self.read_pm("E:\\Mex\\Data\\1\\pm\\")
+        dc_data = self.read_dc("E:\\Mex\\Data\\1\\dc\\")
+        times_dict = self.extract_times(pm_data)
+        dc_data = self.strip_dc(dc_data, times_dict)
+        return dc_data
 
     def get_features(self, data_array, increment, window):
         _features = self._extract_features(data_array, increment, window)
