@@ -16,6 +16,7 @@ full_file = '.csv'
 
 subjects_15_second_gap = ["03", "04", "05", "06", "07"]
 
+
 def write_data(file_path, data):
     if os.path.isfile(file_path):
         f = open(file_path, 'a')
