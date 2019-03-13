@@ -66,7 +66,7 @@ def write_data(file_path, data):
     f.close()
 
 
-def remove_transition():
+def dc_time_fix():
     # subjects = os.listdir('/Volumes/1708903/MEx/Data/1/dc/')
     for subject in subjects:
         subject_files = os.path.join('/Volumes/1708903/MEx/Data/1/dc/', subject)
@@ -110,4 +110,44 @@ def remove_transition():
                         write_data(file, str(tt) + ',' + ','.join([str(f) for f in row[1:]]))
 
 
-remove_transition()
+def ac_time_fix():
+    wrist_files = os.listdir('/Volumes/1708903/MEx/Data/1/acw/')
+    target_folder = '/Volumes/1708903/MEx/Data/2/acw/'
+    if not os.path.exists(target_folder):
+        os.makedirs(target_folder)
+    for w in wrist_files:
+        subject = w.split('_')[0]
+        correction = correction_times[subject]
+        target_file = os.path.join(target_folder, w)
+        data_file = os.path.join('/Volumes/1708903/MEx/Data/1/acw/', w)
+        reader = csv.reader(open(data_file, "r"), delimiter=",")
+        for row in reader:
+            if len(row) == 4:
+                if len(row[0]) == 19:
+                    row[0] = row[0]+'.000000'
+                # print(row[0])
+                tt = dt.datetime.strptime(row[0], '%Y-%m-%d %H:%M:%S.%f')
+                tt = tt + dt.timedelta(seconds=correction)
+                write_data(target_file, str(tt) + ',' + ','.join([str(f) for f in row[1:]]))
+
+    thigh_files = os.listdir('/Volumes/1708903/MEx/Data/1/act/')
+    target_folder = '/Volumes/1708903/MEx/Data/2/act/'
+    if not os.path.exists(target_folder):
+        os.makedirs(target_folder)
+    for t in thigh_files:
+        subject = t.split('_')[0]
+        correction = correction_times[subject]
+        target_file = os.path.join(target_folder, t)
+        data_file = os.path.join('/Volumes/1708903/MEx/Data/1/act/', t)
+        reader = csv.reader(open(data_file, "r"), delimiter=",")
+        for row in reader:
+            if len(row) == 4:
+                if len(row[0]) == 19:
+                    row[0] = row[0]+'.000000'
+                # print(row[0])
+                tt = dt.datetime.strptime(row[0], '%Y-%m-%d %H:%M:%S.%f')
+                tt = tt + dt.timedelta(seconds=correction)
+                write_data(target_file, str(tt) + ',' + ','.join([str(f) for f in row[1:]]))
+
+
+ac_time_fix()
