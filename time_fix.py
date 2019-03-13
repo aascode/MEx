@@ -2,7 +2,7 @@ import os
 import csv
 import datetime as dt
 
-subjects = ['01']
+subjects = ['14', '15', '16', '17', '18', '19', '20', '21', '22', '23', '24', '25']
 
 transition_times = {'01': '2018-11-08 11:46:40.000000,2018-11-08 11:46:52.000000',
                     '02': '2019-02-20 14:28:35.000000,2019-02-20 14:28:43.000000',
@@ -25,6 +25,7 @@ transition_times = {'01': '2018-11-08 11:46:40.000000,2018-11-08 11:46:52.000000
                     '19': '2019-02-20 12:18:55.000000,2019-02-20 12:19:05.000000',
                     '20': '2019-02-20 12:55:29.000000,2019-02-20 12:55:35.000000',
                     '21': '2019-03-05 13:21:47.000000,2019-03-05 13:21:58.000000',
+                    '22': '2019-03-07 12:19:59.500000,2019-03-07 12:19:59.500000',
                     '23': '2019-03-07 12:44:09.000000,2019-03-07 12:44:20.000000',
                     '24': '2019-03-07 13:12:33.000000,2019-03-07 13:12:48.000000',
                     '25': '2019-03-07 15:01:37.000000,2019-03-07 15:01:52.000000'}
@@ -69,12 +70,12 @@ def write_data(file_path, data):
 def remove_transition():
     # subjects = os.listdir('/Volumes/1708903/MEx/Data/1/dc/')
     for subject in subjects:
-        subject_files = os.path.join('/Volumes/1708903/MEx/Data/1/dc/', subject)
+        subject_files = os.path.join('E:/MEx/Data/1/dc/', subject)
         activities = os.listdir(subject_files)
         transitions = transition_times[subject].split(',')
         start = dt.datetime.strptime(transitions[0], '%Y-%m-%d %H:%M:%S.%f')
         end = dt.datetime.strptime(transitions[1], '%Y-%m-%d %H:%M:%S.%f')
-        target_folder = os.path.join('/Volumes/1708903/MEx/Data/2/dc/', subject)
+        target_folder = os.path.join('E:/MEx/Data/2/dc/', subject)
         correction = correction_times[subject]
         if not os.path.exists(target_folder):
             os.makedirs(target_folder)
@@ -87,7 +88,7 @@ def remove_transition():
                 reader = csv.reader(open(data_file, "r"), delimiter=",")
                 for row in reader:
                     if len(row) == 76801:
-                        if len(row[0]) == 19:
+                        if len(row[0]) == 19 and '.' not in row[0]:
                             row[0] = row[0]+'.000000'
                         # print(row[0])
                         tt = dt.datetime.strptime(row[0], '%Y-%m-%d %H:%M:%S.%f')
@@ -102,7 +103,7 @@ def remove_transition():
                 reader = csv.reader(open(data_file, "r"), delimiter=",")
                 for row in reader:
                     if len(row) == 76801:
-                        if len(row[0]) == 19:
+                        if len(row[0]) == 19 and '.' not in row[0]:
                             row[0] = row[0]+'.000000'
                         # print(row[0])
                         tt = dt.datetime.strptime(row[0], '%Y-%m-%d %H:%M:%S.%f')
@@ -110,4 +111,44 @@ def remove_transition():
                         write_data(file, str(tt) + ',' + ','.join([str(f) for f in row[1:]]))
 
 
-remove_transition()
+def ac_time_fix():
+    wrist_files = os.listdir('E:/MEx/Data/1/acw/')
+    target_folder = 'E:/MEx/Data/2/acw/'
+    if not os.path.exists(target_folder):
+        os.makedirs(target_folder)
+    for w in wrist_files:
+        subject = w.split('_')[0]
+        correction = correction_times[subject]
+        target_file = os.path.join(target_folder, w)
+        data_file = os.path.join('E:/MEx/Data/1/acw/', w)
+        reader = csv.reader(open(data_file, "r"), delimiter=",")
+        for row in reader:
+            if len(row) == 4:
+                if len(row[0]) == 19 and '.' not in row[0]:
+                    row[0] = row[0]+'.000000'
+                # print(row[0])
+                tt = dt.datetime.strptime(row[0], '%Y-%m-%d %H:%M:%S.%f')
+                tt = tt + dt.timedelta(seconds=correction)
+                write_data(target_file, str(tt) + ',' + ','.join([str(f) for f in row[1:]]))
+
+    thigh_files = os.listdir('E:/MEx/Data/1/act/')
+    target_folder = 'E:/MEx/Data/2/act/'
+    if not os.path.exists(target_folder):
+        os.makedirs(target_folder)
+    for t in thigh_files:
+        subject = t.split('_')[0]
+        correction = correction_times[subject]
+        target_file = os.path.join(target_folder, t)
+        data_file = os.path.join('E:/MEx/Data/1/act/', t)
+        reader = csv.reader(open(data_file, "r"), delimiter=",")
+        for row in reader:
+            if len(row) == 4:
+                if len(row[0]) == 19 and '.' not in row[0]:
+                    row[0] = row[0]+'.000000'
+                # print(row[0])
+                tt = dt.datetime.strptime(row[0], '%Y-%m-%d %H:%M:%S.%f')
+                tt = tt + dt.timedelta(seconds=correction)
+                write_data(target_file, str(tt) + ',' + ','.join([str(f) for f in row[1:]]))
+
+
+ac_time_fix()
