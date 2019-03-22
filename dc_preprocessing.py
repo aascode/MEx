@@ -4,18 +4,15 @@ import datetime as dt
 import matplotlib.pyplot as plt
 
 #subject = '03'
-subjects = ["03", "04", "05", "06", "07"]
+subjects = ["23", "24", "25"]
 activities = ['01', '02', '03', '04', '05', '06', '07']
 
-folder = '/Volumes/1708903/MEx/Data/fullbackup/dc/'
-target_folder = '/Volumes/1708903/MEx/Data/1/dc/'
+folder = 'E:/MEx/Data/fullbackup/dc/'
+target_folder = 'E:/MEx/Data/1/_dc/'
 
 data_file = 'this.bin'
 time_file = 'time.bin'
 full_file = '.csv'
-
-subjects_15_second_gap = ["03", "04", "05", "06", "07"]
-
 
 def write_data(file_path, data):
     if os.path.isfile(file_path):
@@ -55,9 +52,14 @@ for subject in subjects:
         # write to pre-process step 1 folder
         target_file = target_folder+subject+'/'+subject+'_'+activity+'.csv'
         for itime, idata in zip(timeData, _data):
+            timee = itime[1].split('.')
+            if len(timee[1]) == 1:
+               timee[1] = '00'+timee[1]
+            elif len(timee[1]) == 2:
+                timee[1] = '0'+timee[1]
+
+            itime[1] = '.'.join(timee)
             tt = dt.datetime.strptime(' '.join(itime), '%Y-%m-%d %H:%M:%S.%f')
-            if subject in subjects_15_second_gap:
-                tt = tt + dt.timedelta(seconds=-15)
             write_data(target_file, str(tt)+','+','.join([str(float("{0:.4f}".format(f))) for f in idata]))
 
         # visualise
