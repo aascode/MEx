@@ -1,10 +1,9 @@
 import os
 import numpy as np
 import datetime as dt
-import matplotlib.pyplot as plt
+# import matplotlib.pyplot as plt
 
-#subject = '03'
-subjects = ["23", "24", "25"]
+subjects = []
 activities = ['01', '02', '03', '04', '05', '06', '07']
 
 folder = 'E:/MEx/Data/fullbackup/dc/'
@@ -13,6 +12,7 @@ target_folder = 'E:/MEx/Data/1/_dc/'
 data_file = 'this.bin'
 time_file = 'time.bin'
 full_file = '.csv'
+
 
 def write_data(file_path, data):
     if os.path.isfile(file_path):

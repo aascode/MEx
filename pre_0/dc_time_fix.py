@@ -2,7 +2,8 @@ import os
 import csv
 import datetime as dt
 
-subjects = ["21"]
+subjects = []
+
 
 def write_data(file_path, data):
     if os.path.isfile(file_path):

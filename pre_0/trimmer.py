@@ -48,6 +48,7 @@ def read_pm(path):
                     temp = [dt.datetime.strptime(row[0], '%Y-%m-%d %H:%M:%S.%f')]
                     temp.extend([float(f) for f in row[1:]])
                     temp_data.append(temp)
+
             activity_dict[activity_id] = temp_data
         subjects_dict[subject] = activity_dict
     return subjects_dict
@@ -74,18 +75,19 @@ def read_dc(path):
         activities = os.listdir(subject_files)
         for activity in activities:
             data_file = os.path.join(subject_files, activity)
-            activity_id = activity.split('_')[1].replace('.csv', '')
-            temp_data = []
-            reader = csv.reader(open(data_file, "r"), delimiter=",")
-            for row in reader:
-                if len(row) == 76801:
-                    if len(row[0]) == 19 and '.' not in row[0]:
-                        row[0] = row[0]+'.000000'
-                    temp = [dt.datetime.strptime(row[0], '%Y-%m-%d %H:%M:%S.%f')]
-                    _temp = [float(f) for f in row[1:]]
-                    temp.extend(_temp)
-                    temp_data.append(temp)
-            activity_dict[activity_id] = temp_data
+            activity_id = activity.split('_')[1]
+            if not activity_id == '04':
+                temp_data = []
+                reader = csv.reader(open(data_file, "r"), delimiter=",")
+                for row in reader:
+                    if len(row) == 76801:
+                        if len(row[0]) == 19 and '.' not in row[0]:
+                            row[0] = row[0]+'.000000'
+                        temp = [dt.datetime.strptime(row[0], '%Y-%m-%d %H:%M:%S.%f')]
+                        _temp = [float(f) for f in row[1:]]
+                        temp.extend(_temp)
+                        temp_data.append(temp)
+                activity_dict[activity_id] = temp_data
         subjects_dict[subject] = activity_dict
     return subjects_dict
 
@@ -155,15 +157,16 @@ def strip_ac(ac_data, times_dict):
 
 
 def get_data():
-    pm_data = read_pm("E:\\Mex\\Data\\2\\pm\\")
-    dc_data = read_dc("E:\\Mex\\Data\\2\\dc\\")
-    acw_data = read_ac("E:\\Mex\\Data\\2\\acw\\")
-    act_data = read_ac("E:\\Mex\\Data\\2\\act\\")
+    pm_data = read_pm("/Volumes/1708903/MEx/Data/2/pm/")
+    dc_data = read_dc("/Volumes/1708903/MEx/Data/2/dc/")
+    #acw_data = read_ac("E:\\Mex\\Data\\2\\acw\\")
+    #act_data = read_ac("E:\\Mex\\Data\\2\\act\\")
     times_dict = extract_times(pm_data)
 
     dc_data = strip_dc(dc_data, times_dict)
-    act_data = strip_ac(act_data, times_dict)
-    acw_data = strip_ac(acw_data, times_dict)
+    #act_data = strip_ac(act_data, times_dict)
+    #acw_data = strip_ac(acw_data, times_dict)
 
     write_sensor("E:\\Mex\\Data\\3\\", pm_data, 'pm')
 
+get_data()
