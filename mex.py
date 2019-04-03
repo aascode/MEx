@@ -22,7 +22,7 @@ path = '/Volumes/1708903/MEx/Data/3-16/'
 
 test_user_fold = ['21', '22', '23', '24', '25']
 
-frames_per_second = 2
+frames_per_second = 75
 window = 5
 increment = 2
 
@@ -238,6 +238,23 @@ def scale(_features):
             # print(__item.shape)
             # plt.imshow(__item)
             # plt.show()
+        _newfeatures.append(__newfeatures)
+    _newfeatures = np.array(_newfeatures)
+    return _newfeatures
+
+
+def scale_and_threshold(_features):
+    _newfeatures = []
+    for _item in _features:
+        __newfeatures = []
+        for __item in _item:
+            __item = cv.resize(__item, None, fx=2, fy=1)
+            plt.imshow(__item)
+            plt.show()
+            __item = cv.adaptiveThreshold(__item, 1, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY, 11, 2)
+            __newfeatures.append(__item)
+            plt.imshow(__item)
+            plt.show()
         _newfeatures.append(__newfeatures)
     _newfeatures = np.array(_newfeatures)
     return _newfeatures
