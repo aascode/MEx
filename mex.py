@@ -8,7 +8,7 @@ from keras.models import Model
 from tensorflow import set_random_seed
 import cv2 as cv
 import keras.backend as K
-
+import matplotlib.pyplot as plt
 np.random.seed(1)
 set_random_seed(1)
 
@@ -22,7 +22,7 @@ path = '/Volumes/1708903/MEx/Data/3-16/'
 
 test_user_fold = ['21', '22', '23', '24', '25']
 
-frames_per_second = 75
+frames_per_second = 2
 window = 5
 increment = 2
 
@@ -226,15 +226,21 @@ def pad_features(_features):
 
 
 def scale(_features):
+    _newfeatures = []
     for _item in _features:
+        __newfeatures = []
         for __item in _item:
-            for ___item in __item:
-                # 32*16
-                cv.imshow(___item)
-                ___item = cv.resize(___item, None, fx=1, fy=2)
-                cv.imshow(___item)
-
-
+            # plt.imshow(__item)
+            # plt.show()
+            # print(__item.shape)
+            __item = cv.resize(__item, None, fx=2, fy=1)
+            __newfeatures.append(__item)
+            # print(__item.shape)
+            # plt.imshow(__item)
+            # plt.show()
+        _newfeatures.append(__newfeatures)
+    _newfeatures = np.array(_newfeatures)
+    return _newfeatures
 
 
 def build_model_LSTM():
@@ -341,14 +347,14 @@ def run_model_2D(_train_features, _train_labels, _val_features, _val_labels, _te
 
 
 def build_model_TDConvLSTM():
-    _input = Input(shape=(window*frames_per_second, 32, 16, 1))
-    x = TimeDistributed(Conv2D(32, kernel_size=2, activation='relu'))(_input)
+    _input = Input(shape=(window*frames_per_second, 32, 32, 1))
+    x = TimeDistributed(Conv2D(32, kernel_size=3, activation='relu'))(_input)
     x = TimeDistributed(MaxPooling2D(pool_size=2, strides=2, data_format='channels_last'))(x)
     x = TimeDistributed(BatchNormalization())(x)
-    x = TimeDistributed(Conv2D(64, kernel_size=2, activation='relu'))(x)
+    x = TimeDistributed(Conv2D(64, kernel_size=3, activation='relu'))(x)
     x = TimeDistributed(MaxPooling2D(pool_size=2, strides=2, data_format='channels_last'))(x)
     x = TimeDistributed(BatchNormalization())(x)
-    x = TimeDistributed(Conv2D(128, kernel_size=2, activation='relu'))(x)
+    x = TimeDistributed(Conv2D(128, kernel_size=3, activation='relu'))(x)
     x = TimeDistributed(MaxPooling2D(pool_size=2, strides=2, data_format='channels_last'))(x)
     x = TimeDistributed(BatchNormalization())(x)
     x = Reshape((K.int_shape(x)[1], K.int_shape(x)[2]*K.int_shape(x)[3]*K.int_shape(x)[4]))(x)
@@ -367,23 +373,25 @@ def run_model_TDConvLSTM(_train_features, _train_labels, _val_features, _val_lab
     # (None, timestamps, 32, 16)
     _train_features = np.array(_train_features)
     _train_features = np.reshape(_train_features, (_train_features.shape[0], _train_features.shape[1], 32, 16))
+    _train_features = scale(_train_features)
     _train_features = np.expand_dims(_train_features, 4)
     print(_train_features.shape)
-    scale(_train_features)
 
     _val_features = np.array(_val_features)
     _val_features = np.reshape(_val_features, (_val_features.shape[0], _val_features.shape[1], 32, 16))
+    _val_features = scale(_val_features)
     _val_features = np.expand_dims(_val_features, 4)
     print(_val_features.shape)
 
     _test_features = np.array(_test_features)
     _test_features = np.reshape(_test_features, (_test_features.shape[0], _test_features.shape[1], 32, 16))
+    _test_features = scale(_test_features)
     _test_features = np.expand_dims(_test_features, 4)
     print(_test_features.shape)
 
     pm_model = build_model_TDConvLSTM()
     pm_model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
-    pm_model.fit(_train_features, _train_labels, verbose=1, batch_size=32, epochs=15, shuffle=True,
+    pm_model.fit(_train_features, _train_labels, verbose=1, batch_size=32, epochs=5, shuffle=True,
                  validation_data=(_val_features, _val_labels))
     score = pm_model.evaluate(_test_features, _test_labels, batch_size=32, verbose=0)
     results = 'pm,' + str(score[0]) + ',' + str(score[1])
