@@ -12,6 +12,8 @@ import matplotlib.pyplot as plt
 np.random.seed(1)
 set_random_seed(1)
 
+frame_size = 32*16
+
 sensors = ['pm']
 
 activity_list = ['01', '02', '03', '04', '05', '06', '07']
@@ -122,10 +124,10 @@ def split_windows(data):
     frames = [a[1:] for a in data[:]]
     frames = np.array(frames)
     _length = frames.shape[0]
-    frames = np.reshape(frames, (_length*512))
+    frames = np.reshape(frames, (_length*frame_size))
     frames = frames/max(frames)
     frames = [float("{0:.5f}".format(f)) for f in frames.tolist()]
-    frames = np.reshape(np.array(frames), (_length, 512))
+    frames = np.reshape(np.array(frames), (_length, frame_size))
 
     while start + _window < end:
         _end = start + _window
@@ -285,8 +287,8 @@ def threshold(_features):
     # print(u.shape)
     # print(s.shape)
     # print(v.shape)
-    epsilon = 0.1
-    _n_features = u.dot(np.diag(1.0/np.sqrt(s + epsilon))).dot(u.T).dot(_n_features)
+    # epsilon = 0.1
+    # _n_features = u.dot(np.diag(1.0/np.sqrt(s + epsilon))).dot(u.T).dot(_n_features)
     # f, axarr = plt.subplots(3,2)
     # axarr[0,0].imshow(np.reshape(_n_features[0, :], (32, 32)))
     # axarr[0,1].imshow(np.reshape(_n_features[1, :], (32, 32)))
