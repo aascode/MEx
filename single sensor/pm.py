@@ -18,11 +18,13 @@ activity_list = ['01', '02', '03', '04', '05', '06', '07']
 id_list = range(len(activity_list))
 activity_id_dict = dict(zip(activity_list, id_list))
 
-path = '/Volumes/1708903/MEx/Data/3-16/'
+#path = '/Volumes/1708903/MEx/Data/3-16/'
+path = '/Users/anjanawijekoon/Data/MEx/min3/'
 
-test_user_fold = ['21', '22', '23', '24', '25']
+#test_user_fold = ['21', '22', '23', '24', '25']
+test_user_fold = ['21']
 
-frames_per_second = 75
+frames_per_second = 1
 window = 5
 increment = 2
 
@@ -244,20 +246,73 @@ def scale(_features):
 
 
 def scale_and_threshold(_features):
-    _newfeatures = []
+    _new_features = []
     for _item in _features:
         __newfeatures = []
         for __item in _item:
             __item = cv.resize(__item, None, fx=2, fy=1)
-            plt.imshow(__item)
-            plt.show()
-            __item = cv.adaptiveThreshold(__item, 1, cv.ADAPTIVE_THRESH_GAUSSIAN_C, cv.THRESH_BINARY, 11, 2)
             __newfeatures.append(__item)
-            plt.imshow(__item)
-            plt.show()
-        _newfeatures.append(__newfeatures)
-    _newfeatures = np.array(_newfeatures)
-    return _newfeatures
+        __newfeatures = threshold(__newfeatures)
+        _new_features.append(__newfeatures)
+    _new_features = np.array(_new_features)
+    print(_new_features.shape)
+    return _new_features
+
+
+def threshold(_features):
+    _features = np.array(_features)
+    # print(_features.shape)
+    _n_features = np.reshape(_features, (_features.shape[0], _features.shape[1]*_features.shape[2]))
+    # print(_n_features.shape)
+    # print(_n_features.mean(axis=0).shape)
+    # f, axarr = plt.subplots(3,2)
+    # axarr[0,0].imshow(np.reshape(_n_features[0, :], (32, 32)))
+    # axarr[0,1].imshow(np.reshape(_n_features[1, :], (32, 32)))
+    # axarr[1,0].imshow(np.reshape(_n_features[2, :], (32, 32)))
+    # axarr[1,1].imshow(np.reshape(_n_features[3, :], (32, 32)))
+    # axarr[2,0].imshow(np.reshape(_n_features[4, :], (32, 32)))
+    # plt.show()
+
+    _n_features = _n_features - _n_features.mean(axis=0)
+    # print(_n_features.shape)
+    # plt.imshow(np.reshape(_n_features[4, :], (32, 32)))
+    # plt.show()
+
+    _cov = np.cov(_n_features, rowvar=True)
+    # print(_cov.shape)
+
+    u, s, v = np.linalg.svd(_cov)
+    # print(u.shape)
+    # print(s.shape)
+    # print(v.shape)
+    epsilon = 0.1
+    _n_features = u.dot(np.diag(1.0/np.sqrt(s + epsilon))).dot(u.T).dot(_n_features)
+    # f, axarr = plt.subplots(3,2)
+    # axarr[0,0].imshow(np.reshape(_n_features[0, :], (32, 32)))
+    # axarr[0,1].imshow(np.reshape(_n_features[1, :], (32, 32)))
+    # axarr[1,0].imshow(np.reshape(_n_features[2, :], (32, 32)))
+    # axarr[1,1].imshow(np.reshape(_n_features[3, :], (32, 32)))
+    # axarr[2,0].imshow(np.reshape(_n_features[4, :], (32, 32)))
+    # plt.show()
+
+    epsilon = 0.00001
+    _n_features = u.dot(np.diag(1.0/np.sqrt(s + epsilon))).dot(u.T).dot(_n_features)
+    # f, axarr = plt.subplots(3,2)
+    # axarr[0,0].imshow(np.reshape(_n_features[0, :], (32, 32)))
+    # axarr[0,1].imshow(np.reshape(_n_features[1, :], (32, 32)))
+    # axarr[1,0].imshow(np.reshape(_n_features[2, :], (32, 32)))
+    # axarr[1,1].imshow(np.reshape(_n_features[3, :], (32, 32)))
+    # axarr[2,0].imshow(np.reshape(_n_features[4, :], (32, 32)))
+    # plt.show()
+
+    _n_features = (_n_features - _n_features.min()) / (_n_features.max() - _n_features.min())
+    # plt.imshow(np.reshape(_n_features[4, :], (32, 32)))
+    # plt.show()
+
+    _n_features = np.reshape(_n_features, (_features.shape[0], _features.shape[1], _features.shape[2]))
+    # print(_n_features.shape)
+
+    return _features
 
 
 def build_model_LSTM():
@@ -390,25 +445,28 @@ def run_model_TDConvLSTM(_train_features, _train_labels, _val_features, _val_lab
     # (None, timestamps, 32, 16)
     _train_features = np.array(_train_features)
     _train_features = np.reshape(_train_features, (_train_features.shape[0], _train_features.shape[1], 32, 16))
-    _train_features = scale(_train_features)
+    _train_features = scale_and_threshold(_train_features)
+    # _train_features = scale(_train_features)
     _train_features = np.expand_dims(_train_features, 4)
     print(_train_features.shape)
 
     _val_features = np.array(_val_features)
     _val_features = np.reshape(_val_features, (_val_features.shape[0], _val_features.shape[1], 32, 16))
-    _val_features = scale(_val_features)
+    _val_features = scale_and_threshold(_val_features)
+    # _val_features = scale(_val_features)
     _val_features = np.expand_dims(_val_features, 4)
     print(_val_features.shape)
 
     _test_features = np.array(_test_features)
     _test_features = np.reshape(_test_features, (_test_features.shape[0], _test_features.shape[1], 32, 16))
-    _test_features = scale(_test_features)
+    #_test_features = scale(_test_features)
+    _test_features = scale_and_threshold(_test_features)
     _test_features = np.expand_dims(_test_features, 4)
     print(_test_features.shape)
 
     pm_model = build_model_TDConvLSTM()
-    pm_model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
-    pm_model.fit(_train_features, _train_labels, verbose=1, batch_size=32, epochs=5, shuffle=True,
+    pm_model.compile(optimizer='adadelta', loss='categorical_crossentropy', metrics=['accuracy'])
+    pm_model.fit(_train_features, _train_labels, verbose=1, batch_size=32, epochs=20, shuffle=True,
                  validation_data=(_val_features, _val_labels))
     score = pm_model.evaluate(_test_features, _test_labels, batch_size=32, verbose=0)
     results = 'pm,' + str(score[0]) + ',' + str(score[1])
@@ -422,7 +480,7 @@ all_features = pad_features(all_features)
 all_features = frame_reduce(all_features)
 
 train_features, test_features = train_test_split(all_features, test_user_fold)
-val_user_fold = get_hold_out_users(list(train_features.keys()))
+val_user_fold = ['22']#get_hold_out_users(list(train_features.keys()))
 train_features, val_features = train_test_split(train_features, val_user_fold)
 
 train_features, train_labels = flatten(train_features)
