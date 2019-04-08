@@ -3,19 +3,18 @@ import csv
 import datetime as dt
 import numpy as np
 from keras.utils import np_utils
-from keras.layers import Input, Dense, Conv2D, Conv1D, MaxPooling2D, MaxPooling1D, Flatten, BatchNormalization, LSTM, Reshape, Dropout, TimeDistributed
+from keras.layers import Input, Dense, Conv2D, Conv1D, MaxPooling2D, MaxPooling1D, Flatten, BatchNormalization, LSTM, Reshape, TimeDistributed
 from keras.models import Model
 from tensorflow import set_random_seed
 import cv2 as cv
 import keras.backend as K
-import sklearn.metrics as metrics
 import matplotlib.pyplot as plt
 np.random.seed(1)
 set_random_seed(1)
 
-frame_size = 32*16
+frame_size = 3*1
 
-sensors = ['pm']
+sensors = ['acw']
 
 activity_list = ['01', '02', '03', '04', '05', '06', '07']
 id_list = range(len(activity_list))
@@ -308,7 +307,7 @@ def threshold(_features):
     # axarr[2,0].imshow(np.reshape(_n_features[4, :], (32, 32)))
     # plt.show()
 
-    # _n_features = (_n_features - _n_features.min()) / (_n_features.max() - _n_features.min())
+    _n_features = (_n_features - _n_features.min()) / (_n_features.max() - _n_features.min())
     # plt.imshow(np.reshape(_n_features[4, :], (32, 32)))
     # plt.show()
 
@@ -365,13 +364,9 @@ def run_model_LSTM(_train_features, _train_labels, _val_features, _val_labels, _
     pm_model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
     pm_model.fit(_train_features, _train_labels, verbose=1, batch_size=32, epochs=15, shuffle=True,
                  validation_data=(_val_features, _val_labels))
-    _predict_labels = pm_model.predict(_test_features, batch_size=32, verbose=0)
-    confusion_metric = metrics.classification_report(_test_labels.argmax(axis=1), _predict_labels.argmax(axis=1))
-    f_score = metrics.f1_score(_test_labels.argmax(axis=1), _predict_labels.argmax(axis=1), average='macro')
-    accuracy = metrics.accuracy_score(_test_labels.argmax(axis=1), _predict_labels.argmax(axis=1))
-    results = 'pm,' + str(accuracy)+',' + str(f_score)
+    score = pm_model.evaluate(_test_features, _test_labels, batch_size=32, verbose=0)
+    results = 'pm,' + str(score[0]) + ',' + str(score[1])
     print(results)
-    print(confusion_metric)
 
 
 def build_model_2D():
@@ -420,13 +415,9 @@ def run_model_2D(_train_features, _train_labels, _val_features, _val_labels, _te
     pm_model.compile(optimizer='adam', loss='categorical_crossentropy', metrics=['accuracy'])
     pm_model.fit(_train_features, _train_labels, verbose=1, batch_size=32, epochs=15, shuffle=True,
                  validation_data=(_val_features, _val_labels))
-    _predict_labels = pm_model.predict(_test_features, batch_size=32, verbose=0)
-    confusion_metric = metrics.classification_report(_test_labels.argmax(axis=1), _predict_labels.argmax(axis=1))
-    f_score = metrics.f1_score(_test_labels.argmax(axis=1), _predict_labels.argmax(axis=1), average='macro')
-    accuracy = metrics.accuracy_score(_test_labels.argmax(axis=1), _predict_labels.argmax(axis=1))
-    results = 'pm,' + str(accuracy)+',' + str(f_score)
+    score = pm_model.evaluate(_test_features, _test_labels, batch_size=32, verbose=0)
+    results = 'pm,' + str(score[0]) + ',' + str(score[1])
     print(results)
-    print(confusion_metric)
 
 
 def build_model_TDConvLSTM():
@@ -470,32 +461,27 @@ def run_model_TDConvLSTM(_train_features, _train_labels, _val_features, _val_lab
     pm_model.compile(optimizer='adadelta', loss='categorical_crossentropy', metrics=['accuracy'])
     pm_model.fit(_train_features, _train_labels, verbose=1, batch_size=32, epochs=20, shuffle=True,
                  validation_data=(_val_features, _val_labels))
-    _predict_labels = pm_model.predict(_test_features, batch_size=32, verbose=0)
-    confusion_metric = metrics.classification_report(_test_labels.argmax(axis=1), _predict_labels.argmax(axis=1))
-    f_score = metrics.f1_score(_test_labels.argmax(axis=1), _predict_labels.argmax(axis=1), average='macro')
-    accuracy = metrics.accuracy_score(_test_labels.argmax(axis=1), _predict_labels.argmax(axis=1))
-    results = 'pm,' + str(accuracy)+',' + str(f_score)
+    score = pm_model.evaluate(_test_features, _test_labels, batch_size=32, verbose=0)
+    results = 'pm,' + str(score[0]) + ',' + str(score[1])
     print(results)
-    print(confusion_metric)
 
 
 def build_model_scaledTDConvLSTM():
     _input = Input(shape=(window*frames_per_second, 32, 32, 1))
     x = TimeDistributed(Conv2D(32, kernel_size=3, activation='relu'))(_input)
     x = TimeDistributed(MaxPooling2D(pool_size=2, strides=2, data_format='channels_last'))(x)
-    x = TimeDistributed(Dropout(rate=0.1))(x)
+    x = TimeDistributed(BatchNormalization())(x)
     x = TimeDistributed(Conv2D(64, kernel_size=3, activation='relu'))(x)
     x = TimeDistributed(MaxPooling2D(pool_size=2, strides=2, data_format='channels_last'))(x)
-    x = TimeDistributed(Dropout(rate=0.1))(x)
+    x = TimeDistributed(BatchNormalization())(x)
     x = TimeDistributed(Conv2D(128, kernel_size=3, activation='relu'))(x)
     x = TimeDistributed(MaxPooling2D(pool_size=2, strides=2, data_format='channels_last'))(x)
-    x = TimeDistributed(Dropout(rate=0.1))(x)
+    x = TimeDistributed(BatchNormalization())(x)
     x = Reshape((K.int_shape(x)[1], K.int_shape(x)[2]*K.int_shape(x)[3]*K.int_shape(x)[4]))(x)
-    x = LSTM(600, dropout=0.1)(x)
+    x = LSTM(600)(x)
     x = Dense(300, activation='relu')(x)
-    x = Dropout(rate=0.1)(x)
+    x = BatchNormalization()(x)
     x = Dense(100, activation='relu')(x)
-    x = Dropout(rate=0.1)(x)
     x = Dense(len(activity_list), activation='softmax')(x)
 
     model = Model(inputs=_input, outputs=x)
@@ -507,22 +493,22 @@ def run_model_scaledTDConvLSTM(_train_features, _train_labels, _val_features, _v
     # (None, timestamps, 32, 32)
     _train_features = np.array(_train_features)
     _train_features = np.reshape(_train_features, (_train_features.shape[0], _train_features.shape[1], 32, 16))
-    # _train_features = scale_and_threshold(_train_features)
-    _train_features = scale(_train_features)
+    _train_features = scale_and_threshold(_train_features)
+    # _train_features = scale(_train_features)
     _train_features = np.expand_dims(_train_features, 4)
     print(_train_features.shape)
 
     _val_features = np.array(_val_features)
     _val_features = np.reshape(_val_features, (_val_features.shape[0], _val_features.shape[1], 32, 16))
-    # _val_features = scale_and_threshold(_val_features)
-    _val_features = scale(_val_features)
+    _val_features = scale_and_threshold(_val_features)
+    # _val_features = scale(_val_features)
     _val_features = np.expand_dims(_val_features, 4)
     print(_val_features.shape)
 
     _test_features = np.array(_test_features)
     _test_features = np.reshape(_test_features, (_test_features.shape[0], _test_features.shape[1], 32, 16))
-    _test_features = scale(_test_features)
-    # _test_features = scale_and_threshold(_test_features)
+    #_test_features = scale(_test_features)
+    _test_features = scale_and_threshold(_test_features)
     _test_features = np.expand_dims(_test_features, 4)
     print(_test_features.shape)
 
@@ -530,13 +516,9 @@ def run_model_scaledTDConvLSTM(_train_features, _train_labels, _val_features, _v
     pm_model.compile(optimizer='adadelta', loss='categorical_crossentropy', metrics=['accuracy'])
     pm_model.fit(_train_features, _train_labels, verbose=1, batch_size=32, epochs=20, shuffle=True,
                  validation_data=(_val_features, _val_labels))
-    _predict_labels = pm_model.predict(_test_features, batch_size=32, verbose=0)
-    confusion_metric = metrics.classification_report(_test_labels.argmax(axis=1), _predict_labels.argmax(axis=1))
-    f_score = metrics.f1_score(_test_labels.argmax(axis=1), _predict_labels.argmax(axis=1), average='macro')
-    accuracy = metrics.accuracy_score(_test_labels.argmax(axis=1), _predict_labels.argmax(axis=1))
-    results = 'pm,' + str(accuracy)+',' + str(f_score)
+    score = pm_model.evaluate(_test_features, _test_labels, batch_size=32, verbose=0)
+    results = 'pm,' + str(score[0]) + ',' + str(score[1])
     print(results)
-    print(confusion_metric)
 
 
 all_data = read()
@@ -576,7 +558,5 @@ test_labels = np_utils.to_categorical(test_labels, len(activity_list))
 # 75-0.6349
 # run_model_LSTM(train_features, train_labels, val_features, val_labels, test_features, test_labels)
 
-run_model_2D(train_features, train_labels, val_features, val_labels, test_features, test_labels)
-run_model_LSTM(train_features, train_labels, val_features, val_labels, test_features, test_labels)
+
 run_model_scaledTDConvLSTM(train_features, train_labels, val_features, val_labels, test_features, test_labels)
-run_model_TDConvLSTM(train_features, train_labels, val_features, val_labels, test_features, test_labels)
