@@ -3,11 +3,14 @@ import numpy as np
 import datetime as dt
 # import matplotlib.pyplot as plt
 
-subjects = []
-activities = ['01', '02', '03', '04', '05', '06', '07']
+subjects = ['19']
+#['21', '22', '23', '24', '25', '26', '27', '28', '29', '30']
+#['01', '02', '03', '04', '05', '06', '07', '08', '09', '10', '11', '12', '13', '14', '15', '16', '17', '18','19', '20'
 
-folder = 'E:/MEx/Data/fullbackup/dc/'
-target_folder = 'E:/MEx/Data/1/_dc/'
+activities = ['01', '02', '03', '05', '06', '07']
+
+folder = 'E:/MEx/Data/raw/dc/'
+target_folder = 'E:/MEx/Data/pre_1/dc/'
 
 data_file = 'this.bin'
 time_file = 'time.bin'
