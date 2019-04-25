@@ -1,0 +1,10 @@
+CUDA_VISIBLE_DEVICES=3 python ./acw.py > output_ac.txt
+CUDA_VISIBLE_DEVICES=3 python ./acw.py > output_ac.txt
+CUDA_VISIBLE_DEVICES=3 python ./acw.py > output_ac.txt
+CUDA_VISIBLE_DEVICES=3 python ./acw.py > output_ac.txt
+CUDA_VISIBLE_DEVICES=3 python ./acw.py > output_ac.txt
+CUDA_VISIBLE_DEVICES=3 python ./acw.py > output_ac.txt
+CUDA_VISIBLE_DEVICES=3 python ./acw.py > output_ac.txt
+CUDA_VISIBLE_DEVICES=3 python ./acw.py > output_ac.txt
+CUDA_VISIBLE_DEVICES=3 python ./acw.py > output_ac.txt
+CUDA_VISIBLE_DEVICES=3 python ./acw.py > output_ac.txt
