@@ -4,12 +4,10 @@ import os
 import cv2 as cv
 import csv
 import codecs
+import matplotlib.pyplot as mlp
 
-scalex = 0.1
-scaley = 0.1
 path = 'E:/MEx/Data/pre_3/'
-new_path = 'E:/MEx/Data/dc_scaled/'+str(scaley)+'/'
-subjects = ['01']
+new_path = 'E:/MEx/Data/act/'
 
 
 def write_data(file_path, data):
@@ -26,22 +24,17 @@ def _read(_file, _new_file):
     if '.DS_Store' not in _file:
         reader = csv.reader(open(_file, 'r'), delimiter=",")
         for row in reader:
-            if len(row) == 76801:
+            if len(row) == 4:
                 if len(row[0]) == 19 and '.' not in row[0]:
                     row[0] = row[0]+'.000000'
                 temp = [dt.datetime.strptime(row[0], '%Y-%m-%d %H:%M:%S.%f')]
                 _temp = [float(f) for f in row[1:]]
-                _temp = np.array(_temp)
-                _temp = np.reshape(_temp, (240, 320))
-                __temp = cv.resize(_temp, None, fx=scalex, fy=scaley)
-                __temp = np.reshape(__temp, (int(240*scalex*320*scaley))).tolist()
-                __temp = [float("{0:.4f}".format(f)) for f in __temp]
-                temp.extend(__temp)
+                temp.extend(_temp)
                 write_data(_new_file, ','.join([str(i) for i in temp]))
 
 
 def read():
-    #subjects = os.listdir(path)
+    subjects = os.listdir(path)
     for subject in subjects:
         subject_path = os.path.join(path, subject)
         activities = os.listdir(subject_path)
@@ -53,7 +46,7 @@ def read():
             datas = os.listdir(activity_path)
             for data in datas:
                 sensor = data.split('.')[0]
-                if 'dc' in sensor:
+                if 'act' in sensor:
                     _read(os.path.join(activity_path, data),
                           os.path.join(new_subject_path, activity+'_'+sensor+'.csv'))
 
