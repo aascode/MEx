@@ -1,0 +1,10 @@
+CUDA_VISIBLE_DEVICES=1 python ./dc.py > output_dc.txt
+CUDA_VISIBLE_DEVICES=1 python ./dc.py > output_dc.txt
+CUDA_VISIBLE_DEVICES=1 python ./dc.py > output_dc.txt
+CUDA_VISIBLE_DEVICES=1 python ./dc.py > output_dc.txt
+CUDA_VISIBLE_DEVICES=1 python ./dc.py > output_dc.txt
+CUDA_VISIBLE_DEVICES=1 python ./dc.py > output_dc.txt
+CUDA_VISIBLE_DEVICES=1 python ./dc.py > output_dc.txt
+CUDA_VISIBLE_DEVICES=1 python ./dc.py > output_dc.txt
+CUDA_VISIBLE_DEVICES=1 python ./dc.py > output_dc.txt
+CUDA_VISIBLE_DEVICES=1 python ./dc.py > output_dc.txt
