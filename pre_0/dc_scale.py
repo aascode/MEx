@@ -5,8 +5,8 @@ import cv2 as cv
 import csv
 import codecs
 
-scalex = 0.1
-scaley = 0.1
+scalex = 0.025
+scaley = 0.025
 path = 'E:/MEx/Data/pre_3/'
 new_path = 'E:/MEx/Data/dc_scaled/'+str(scaley)+'/'
 subjects = ['01']

@@ -6,8 +6,8 @@ import csv
 import codecs
 import matplotlib.pyplot as mlp
 
-scalex = 1.0
-scaley = 0.5
+scalex = 0.5
+scaley = 0.25
 path = 'E:/MEx/Data/pre_3/'
 new_path = 'E:/MEx/Data/pm_scaled/'+str(scalex)+'_'+str(scaley)+'/'
 
