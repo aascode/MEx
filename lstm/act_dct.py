@@ -3,14 +3,14 @@ import csv
 import datetime as dt
 import numpy as np
 import sklearn.metrics as metrics
-from keras.layers import Input, Dense, BatchNormalization, Conv1D, MaxPooling1D, Flatten
+from keras.layers import Input, Dense, BatchNormalization, Conv1D, MaxPooling1D, LSTM, TimeDistributed, Reshape
 from keras.models import Model
 import pandas as pd
+import keras.backend as K
 import random
 from scipy import fftpack
 from keras.utils import np_utils
 from tensorflow import set_random_seed
-
 random.seed(0)
 np.random.seed(1)
 
@@ -20,13 +20,14 @@ activity_list = ['01', '02', '03', '04', '05', '06', '07']
 id_list = range(len(activity_list))
 activity_id_dict = dict(zip(activity_list, id_list))
 
-path = '/Volumes/1708903/MEx/Data/acw/'
-results_file = '/Volumes/1708903/MEx/results/cnn_acw.csv'
+path = '/Volumes/1708903/MEx/Data/act/'
+results_file = '/Volumes/1708903/MEx/results/lstm_act.csv'
 
 frames_per_second = 100
 window = 5
 increment = 2
-feature_length = frames_per_second * window
+dct_length = 60
+feature_length = dct_length * 3
 
 test_user_fold = [['01', '02', '03', '04', '05'],
                   ['06', '07', '08', '09', '10'],
@@ -155,6 +156,33 @@ def train_test_split(user_data, test_ids):
     return train_data, test_data
 
 
+def dct(data):
+    new_data = []
+    data = np.array(data)
+    print(data.shape)
+    data = np.reshape(data, (data.shape[0], window, frames_per_second, 3))
+    print(data.shape)
+    for item in data:
+        new_item = []
+        for i in range(item.shape[0]):
+            if dct_length > 0:
+                x = [t[0] for t in item[i]]
+                y = [t[1] for t in item[i]]
+                z = [t[2] for t in item[i]]
+
+                dct_x = np.abs(fftpack.dct(x, norm='ortho'))
+                dct_y = np.abs(fftpack.dct(y, norm='ortho'))
+                dct_z = np.abs(fftpack.dct(z, norm='ortho'))
+
+                v = np.array([])
+                v = np.concatenate((v, dct_x[:dct_length]))
+                v = np.concatenate((v, dct_y[:dct_length]))
+                v = np.concatenate((v, dct_z[:dct_length]))
+                new_item.append(v)
+        new_data.append(new_item)
+    return new_data
+
+
 def flatten(_data):
     flatten_data = []
     flatten_labels = []
@@ -165,7 +193,7 @@ def flatten(_data):
             activity_data = activities[activity]
             flatten_data.extend(activity_data)
             flatten_labels.extend([activity for i in range(len(activity_data))])
-    return flatten_data, flatten_labels
+    return dct(flatten_data), flatten_labels
 
 
 def pad(data, length):
@@ -217,22 +245,25 @@ def pad_features(_features):
 
 
 def build_1D_model():
-    _input = Input(shape=(feature_length, 3))
-    x = Conv1D(32, kernel_size=5, activation='relu')(_input)
-    x = MaxPooling1D(pool_size=2)(x)
+    _input = Input(shape=(window, feature_length, 1))
+    x = TimeDistributed(Conv1D(32, kernel_size=5, activation='relu'))(_input)
+    x = TimeDistributed(MaxPooling1D(pool_size=2))(x)
+    x = TimeDistributed(BatchNormalization())(x)
+    x = TimeDistributed(Conv1D(64, kernel_size=5, activation='relu'))(x)
+    x = TimeDistributed(MaxPooling1D(pool_size=2))(x)
+    x = TimeDistributed(BatchNormalization())(x)
+    x = TimeDistributed(Conv1D(128, kernel_size=5, activation='relu'))(x)
+    x = TimeDistributed(MaxPooling1D(pool_size=2))(x)
+    x = TimeDistributed(BatchNormalization())(x)
+    x = Reshape((K.int_shape(x)[1], K.int_shape(x)[2]*K.int_shape(x)[3]))(x)
+    x = LSTM(600)(x)
     x = BatchNormalization()(x)
-    x = Conv1D(64, kernel_size=5, activation='relu')(x)
-    x = MaxPooling1D(pool_size=2)(x)
-    x = BatchNormalization()(x)
-    x = Conv1D(128, kernel_size=5, activation='relu')(x)
-    x = MaxPooling1D(pool_size=2)(x)
-    x = BatchNormalization()(x)
-    x = Flatten()(x)
     x = Dense(100, activation='relu')(x)
     x = BatchNormalization()(x)
     x = Dense(len(activity_list), activation='softmax')(x)
 
     model = Model(inputs=_input, outputs=x)
+    model.summary()
     return model
 
 
@@ -243,13 +274,18 @@ def _run_(_train_features, _train_labels, _test_features, _test_labels):
     _test_features = np.array(_test_features)
     print(_test_features.shape)
 
+    _train_features = np.expand_dims(_train_features, 3)
+    print(_test_features.shape)
+    _test_features = np.expand_dims(_test_features, 3)
+    print(_test_features.shape)
+
     model = build_1D_model()
     model.compile(optimizer='adadelta', loss='categorical_crossentropy', metrics=['accuracy'])
-    model.fit(_train_features, _train_labels, verbose=0, batch_size=64, epochs=100, shuffle=True)
+    model.fit(_train_features, _train_labels, verbose=0, batch_size=32, epochs=100, shuffle=True)
     _predict_labels = model.predict(_test_features, batch_size=64, verbose=0)
     f_score = metrics.f1_score(_test_labels.argmax(axis=1), _predict_labels.argmax(axis=1), average='macro')
     accuracy = metrics.accuracy_score(_test_labels.argmax(axis=1), _predict_labels.argmax(axis=1))
-    results = 'acw' + ',' + 'raw_1D' + ',' + str(accuracy)+',' + str(f_score)
+    results = 'act' + ',' + 'DCT_1D' + ',' + str(accuracy)+',' + str(f_score)
     print(results)
     write_data(results_file, str(results))
 
@@ -267,14 +303,6 @@ def run():
     all_features = pad_features(all_features)
     all_features = frame_reduce(all_features)
 
-    all_f, all_l = flatten(all_features)
-    all_f = np.array(all_f)
-    print(all_f.shape)
-    all_f = np.reshape(all_f, (all_f.shape[0] * all_f.shape[1] * all_f.shape[2]))
-    print(all_f.shape)
-    print(np.max(all_f))
-    print(np.min(all_f))
-
     for i in range(len(test_user_fold)):
         set_random_seed(2)
         train_features, test_features = train_test_split(all_features, test_user_fold[i])
@@ -285,6 +313,6 @@ def run():
         train_labels = np_utils.to_categorical(train_labels, len(activity_list))
         test_labels = np_utils.to_categorical(test_labels, len(activity_list))
 
-        #_run_(train_features, train_labels, test_features, test_labels)
+        _run_(train_features, train_labels, test_features, test_labels)
 
 run()

@@ -2,7 +2,6 @@ import csv
 import datetime as dt
 import os
 import numpy as np
-import skimage.measure as ski
 from scipy import fftpack
 
 np.random.seed(100000)

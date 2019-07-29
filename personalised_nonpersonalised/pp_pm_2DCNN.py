@@ -2,39 +2,35 @@ import os
 import csv
 import datetime as dt
 import numpy as np
-from keras.utils import np_utils
-from keras.layers import Input, Dense, Conv2D, Conv1D, MaxPooling2D, MaxPooling1D, Flatten, BatchNormalization, LSTM, Reshape, TimeDistributed
+from keras.layers import Input, Dense, BatchNormalization, Conv1D, Conv2D, MaxPooling1D, MaxPooling2D, Flatten
 from keras.models import Model
-from tensorflow import set_random_seed
-import cv2 as cv
-import keras.backend as K
 import sklearn.metrics as metrics
 import pandas as pd
+from keras.utils import np_utils
+from tensorflow import set_random_seed
 import random
+import sys
 
 random.seed(0)
 np.random.seed(1)
 
-frame_size = 3*1
+frame_size = 32*16
 
 activity_list = ['01', '02', '03', '04', '05', '06', '07']
 id_list = range(len(activity_list))
 activity_id_dict = dict(zip(activity_list, id_list))
 
-#path = '/Volumes/1708903/MEx/Data/act/'
-path = '/home/mex/data/act/'
-results_file = '/home/mex/results/np_act.csv'
+path = '/Volumes/1708903/MEx/Data/pm_scaled/1.0/'
+results_file = '/Volumes/1708903/MEx/results/p_vs_np/pp_pm.csv'
 
-frames_per_second = 100
+frames_per_second = 1
 window = 5
 increment = 2
 
 pm_min_length = 14*window
 pm_max_length = 15*window
-dc_min_length = 10*window
-dc_max_length = 15*window
-ac_min_length = 95*window
-ac_max_length = 100*window
+
+user_index = int(sys.argv[1])
 
 
 def write_data(file_path, data):
@@ -63,20 +59,21 @@ def _read(_file):
 def read():
     alldata = {}
     subjects = os.listdir(path)
-    for subject in subjects:
-        allactivities = {}
-        subject_path = os.path.join(path, subject)
-        activities = os.listdir(subject_path)
-        for activity in activities:
-            sensor = activity.split('.')[0].replace('_act', '')
-            activity_id = sensor.split('_')[0]
-            _data = _read(os.path.join(subject_path, activity), )
-            if activity_id in allactivities:
-                allactivities[activity_id][sensor] = _data
-            else:
-                allactivities[activity_id] = {}
-                allactivities[activity_id][sensor] = _data
-        alldata[subject] = allactivities
+    for index, subject in enumerate(subjects):
+        if index == user_index:
+            allactivities = {}
+            subject_path = os.path.join(path, subject)
+            activities = os.listdir(subject_path)
+            for activity in activities:
+                sensor = activity.split('.')[0].replace('_pm', '')
+                activity_id = sensor.split('_')[0]
+                _data = _read(os.path.join(subject_path, activity), )
+                if activity_id in allactivities:
+                    allactivities[activity_id][sensor] = _data
+                else:
+                    allactivities[activity_id] = {}
+                    allactivities[activity_id][sensor] = _data
+            alldata[subject] = allactivities
     return alldata
 
 
@@ -119,6 +116,11 @@ def split_windows(data):
 
     frames = [a[1:] for a in data[:]]
     frames = np.array(frames)
+    _length = frames.shape[0]
+    frames = np.reshape(frames, (_length*frame_size))
+    frames = frames/max(frames)
+    frames = [float("{0:.5f}".format(f)) for f in frames.tolist()]
+    frames = np.reshape(np.array(frames), (_length, frame_size))
 
     while start + _window < end:
         _end = start + _window
@@ -145,6 +147,23 @@ def extract_features(_data):
             _activities[activity_id] = time_windows
         _features[subject] = _activities
     return _features
+
+
+def split(_data, _labels, test_indices):
+    _train_data = []
+    _train_labels = []
+    _test_data = []
+    _test_labels = []
+    index = 0
+    for _datum, _label in zip(_data, _labels):
+        if index in test_indices:
+            _test_data.append(_datum)
+            _test_labels.append(_label)
+        else:
+            _train_data.append(_datum)
+            _train_labels.append(_label)
+        index += 1
+    return _train_data, _train_labels, _test_data, _test_labels
 
 
 def split(_data, _labels, test_indices):
@@ -236,63 +255,76 @@ def pad_features(_features):
             new_items = []
             for item in items:
                 _len = len(item)
-                if _len < ac_min_length:
+                if _len < pm_min_length:
                     continue
-                elif _len > ac_max_length:
-                    item = reduce(item, _len - ac_max_length)
+                elif _len > pm_max_length:
+                    item = reduce(item, _len - pm_max_length)
                     new_items.append(item)
-                elif _len < ac_max_length:
-                    item = pad(item, ac_max_length - _len)
+                elif _len < pm_max_length:
+                    item = pad(item, pm_max_length - _len)
                     new_items.append(item)
             new_activities[act] = new_items
         new_features[subject] = new_activities
     return new_features
 
 
-def build_model_1D():
-    _input = Input(shape=(ac_max_length, 3))
-    x = Conv1D(32, kernel_size=5, activation='relu')(_input)
-    x = MaxPooling1D(pool_size=2)(x)
+def build_2D_model():
+    _input = Input(shape=(32, 16 * window * frames_per_second, 1))
+    x = Conv2D(32, kernel_size=(1,5), activation='relu')(_input)
+    x = MaxPooling2D(pool_size=2, data_format='channels_last')(x)
     x = BatchNormalization()(x)
-    x = Conv1D(64, kernel_size=5, activation='relu')(x)
-    x = MaxPooling1D(pool_size=2)(x)
+    x = Conv2D(64, kernel_size=(1,5), activation='relu')(x)
+    x = MaxPooling2D(pool_size=2, data_format='channels_last')(x)
     x = BatchNormalization()(x)
-    x = Conv1D(128, kernel_size=5, activation='relu')(x)
-    x = MaxPooling1D(pool_size=2)(x)
+    x = Conv2D(128, kernel_size=(1,5), activation='relu')(x)
+    x = MaxPooling2D(pool_size=2, data_format='channels_last')(x)
     x = BatchNormalization()(x)
     x = Flatten()(x)
-    x = Dense(720, activation='relu')(x)
-    x = BatchNormalization()(x)
     x = Dense(100, activation='relu')(x)
+    x = BatchNormalization()(x)
     x = Dense(len(activity_list), activation='softmax')(x)
 
     model = Model(inputs=_input, outputs=x)
-    #print(model.summary())
+    model.summary()
     return model
 
 
-def run_model_1D(_train_features, _train_labels, _test_features, _test_labels):
-    # (None, ac_max_length, 3)
+def _run_(_train_features, _train_labels, _test_features, _test_labels):
     _train_features = np.array(_train_features)
-    #print(_train_features.shape)
-    write_data(results_file, str(_train_features.shape))
+    print(_train_features.shape)
+
+    _train_features = np.reshape(_train_features, (_train_features.shape[0], _train_features.shape[1], 32, 16))
+    _train_features = np.swapaxes(_train_features, 1, 2)
+    _train_features = np.swapaxes(_train_features, 2, 3)
+    _train_features = np.reshape(_train_features, (_train_features.shape[0], _train_features.shape[1],
+                                                   _train_features.shape[2] * _train_features.shape[3]))
+    _train_features = np.expand_dims(_train_features, 4)
+    print(_train_features.shape)
 
     _test_features = np.array(_test_features)
-    #print(_test_features.shape)
+    print(_test_features.shape)
+    _test_features = np.reshape(_test_features, (_test_features.shape[0], _test_features.shape[1], 32, 16))
+    _test_features = np.swapaxes(_test_features, 1, 2)
+    _test_features = np.swapaxes(_test_features, 2, 3)
+    _test_features = np.reshape(_test_features, (_test_features.shape[0], _test_features.shape[1],
+                                                 _test_features.shape[2] * _test_features.shape[3]))
+    _test_features = np.expand_dims(_test_features, 4)
+    print(_test_features.shape)
 
-    pm_model = build_model_1D()
-    pm_model.compile(optimizer='adadelta', loss='categorical_crossentropy', metrics=['accuracy'])
-    pm_model.fit(_train_features, _train_labels, verbose=0, batch_size=32, epochs=15, shuffle=True)
-    _predict_labels = pm_model.predict(_test_features, batch_size=64, verbose=0)
+    model = build_2D_model()
+    model.compile(optimizer='adadelta', loss='categorical_crossentropy', metrics=['accuracy'])
+    model.fit(_train_features, _train_labels, verbose=0, batch_size=32, epochs=50, shuffle=True)
+    _predict_labels = model.predict(_test_features, batch_size=64, verbose=0)
     f_score = metrics.f1_score(_test_labels.argmax(axis=1), _predict_labels.argmax(axis=1), average='macro')
     accuracy = metrics.accuracy_score(_test_labels.argmax(axis=1), _predict_labels.argmax(axis=1))
-    results = 'act' + ',' + str(accuracy)+',' + str(f_score)
+    results = str(accuracy)+',' + str(f_score)
+    print(results)
     write_data(results_file, str(results))
 
     _test_labels = pd.Series(_test_labels.argmax(axis=1), name='Actual')
     _predict_labels = pd.Series(_predict_labels.argmax(axis=1), name='Predicted')
     df_confusion = pd.crosstab(_test_labels, _predict_labels)
-    #print(df_confusion)
+    print(df_confusion)
     write_data(results_file, str(df_confusion))
 
 
@@ -312,7 +344,7 @@ def run():
         train_labels[i] = np_utils.to_categorical(train_labels[i], len(activity_list))
         test_labels[i] = np_utils.to_categorical(test_labels[i], len(activity_list))
         set_random_seed(2)
-        run_model_1D(train_features[i], train_labels[i], test_features[i], test_labels[i])
+        _run_(train_features[i], train_labels[i], test_features[i], test_labels[i])
 
 
 run()

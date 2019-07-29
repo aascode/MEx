@@ -1,31 +1,37 @@
-import os
 import csv
 import datetime as dt
 import numpy as np
-from keras.utils import np_utils
-from keras.layers import Input, Dense, Conv2D, Conv1D, MaxPooling2D, MaxPooling1D, Flatten, BatchNormalization, LSTM, Reshape, TimeDistributed
-from keras.models import Model
-from tensorflow import set_random_seed
-import cv2 as cv
-import keras.backend as K
-import sklearn.metrics as metrics
-import pandas as pd
+import tensorflow as tf
+import os
+import keras
 import random
 
 random.seed(0)
 np.random.seed(1)
 
-frame_size = 3*1
-
 activity_list = ['01', '02', '03', '04', '05', '06', '07']
 id_list = range(len(activity_list))
 activity_id_dict = dict(zip(activity_list, id_list))
 
-#path = '/Volumes/1708903/MEx/Data/act/'
-path = '/home/mex/data/act/'
-results_file = '/home/mex/results/np_act.csv'
+path = '/Volumes/1708903/MEx/Data/pm_scaled/1.0/'
+#path = '/home/mex/data/pm_1.0/'
+#results_file = '/home/mex/results/np_pm_1.0.csv'
 
-frames_per_second = 100
+# train size per person, samples per class, classes per set, feature length, window, increment, frames per second
+pm_mn_stream_folder = '/Volumes/1708903/MEx/Data/pm_scaled/pm_mn_stream_500_5_7_720_5_2_1'
+#pm_mn_stream_folder = '/home/mex/data/np_pm_mn_stream_500_5_7_720_5_2_1'
+pm_mn_stream_y_file = 'target_y.csv'
+
+height = 32
+width = 16
+frame_size = height*width
+samples_per_class = 5
+classes_per_set = len(activity_list)
+embedding_length = 720
+
+number_of_users = 5
+train_size = 500 * number_of_users
+frames_per_second = 1
 window = 5
 increment = 2
 
@@ -68,7 +74,7 @@ def read():
         subject_path = os.path.join(path, subject)
         activities = os.listdir(subject_path)
         for activity in activities:
-            sensor = activity.split('.')[0].replace('_act', '')
+            sensor = activity.split('.')[0].replace('_pm', '')
             activity_id = sensor.split('_')[0]
             _data = _read(os.path.join(subject_path, activity), )
             if activity_id in allactivities:
@@ -119,6 +125,11 @@ def split_windows(data):
 
     frames = [a[1:] for a in data[:]]
     frames = np.array(frames)
+    _length = frames.shape[0]
+    frames = np.reshape(frames, (_length*frame_size))
+    frames = frames/max(frames)
+    frames = [float("{0:.5f}".format(f)) for f in frames.tolist()]
+    frames = np.reshape(np.array(frames), (_length, frame_size))
 
     while start + _window < end:
         _end = start + _window
@@ -236,64 +247,178 @@ def pad_features(_features):
             new_items = []
             for item in items:
                 _len = len(item)
-                if _len < ac_min_length:
+                if _len < pm_min_length:
                     continue
-                elif _len > ac_max_length:
-                    item = reduce(item, _len - ac_max_length)
+                elif _len > pm_max_length:
+                    item = reduce(item, _len - pm_max_length)
                     new_items.append(item)
-                elif _len < ac_max_length:
-                    item = pad(item, ac_max_length - _len)
+                elif _len < pm_max_length:
+                    item = pad(item, pm_max_length - _len)
                     new_items.append(item)
             new_activities[act] = new_items
         new_features[subject] = new_activities
     return new_features
 
 
-def build_model_1D():
-    _input = Input(shape=(ac_max_length, 3))
-    x = Conv1D(32, kernel_size=5, activation='relu')(_input)
-    x = MaxPooling1D(pool_size=2)(x)
-    x = BatchNormalization()(x)
-    x = Conv1D(64, kernel_size=5, activation='relu')(x)
-    x = MaxPooling1D(pool_size=2)(x)
-    x = BatchNormalization()(x)
-    x = Conv1D(128, kernel_size=5, activation='relu')(x)
-    x = MaxPooling1D(pool_size=2)(x)
-    x = BatchNormalization()(x)
-    x = Flatten()(x)
-    x = Dense(720, activation='relu')(x)
-    x = BatchNormalization()(x)
-    x = Dense(100, activation='relu')(x)
-    x = Dense(len(activity_list), activation='softmax')(x)
-
-    model = Model(inputs=_input, outputs=x)
-    #print(model.summary())
-    return model
+def write_slice_x(_slice_x, _file, fold):
+    _slice_x = np.reshape(_slice_x, (((samples_per_class*classes_per_set)+1) * height * width*window * 1))
+    #print(_slice_x.shape)
+    _file_ = os.path.join(pm_mn_stream_folder, fold)
+    if not os.path.exists(_file_):
+        os.makedirs(_file_)
+    _file_ = os.path.join(_file_, str(_file)+'.csv')
+    write_data(_file_, ','.join([str(f) for f in _slice_x.tolist()]))
 
 
-def run_model_1D(_train_features, _train_labels, _test_features, _test_labels):
-    # (None, ac_max_length, 3)
+def write_slice_y(_slice_y, _file, fold):
+    _slice_y = np.reshape(_slice_y, (samples_per_class*classes_per_set))
+    #print(_slice_y.shape)
+    _file_ = os.path.join(pm_mn_stream_folder, fold)
+    if not os.path.exists(_file_):
+        os.makedirs(_file_)
+    _file_ = os.path.join(_file_, str(_file)+'.csv')
+    write_data(_file_, ','.join([str(f) for f in _slice_y.tolist()]))
+
+
+def write_target_y(_target_y, fold):
+    _file_ = os.path.join(pm_mn_stream_folder, fold)
+    if not os.path.exists(_file_):
+        os.makedirs(_file_)
+    _file_ = os.path.join(_file_, str(pm_mn_stream_y_file))
+    write_data(_file_, str(_target_y))
+
+
+def support_set_split(test_features, test_labels):
+    support_set = {}
+    test_set = {}
+    _values = {}
+    for _val, _label in zip(test_features, test_labels):
+        if _label in _values:
+            _values[_label].append(_val)
+        else:
+            _values[_label] = [_val]
+
+    for _class, _val in _values.items():
+        support_set_indexes = np.random.choice(range(len(_val)), samples_per_class, False)
+        X = [x for index, x in enumerate(_val) if index not in support_set_indexes]
+        ss = [x for index, x in enumerate(_val) if index in support_set_indexes]
+        support_set[_class] = ss
+        test_set[_class] = X
+    return support_set, test_set
+
+
+def packslice(data_set, fold):
+    n_samples = samples_per_class * classes_per_set
+    support_cacheX = []
+    support_cacheY = []
+    target_cacheY = []
+    count = 0
+    for itr in range(train_size):
+        slice_x = np.zeros((n_samples + 1, height, width * window * frames_per_second, 1))
+        slice_y = np.zeros((n_samples,))
+
+        ind = 0
+        pinds = np.random.permutation(n_samples)
+
+        x_hat_class = np.random.randint(classes_per_set)
+        _classes = np.random.choice(list(data_set.keys()), classes_per_set, False)
+
+        for j, cur_class in enumerate(_classes):
+            data_pack = data_set[cur_class]
+            example_inds = np.random.choice(len(data_pack), samples_per_class, False)
+
+            for eind in example_inds:
+                slice_x[pinds[ind], :] = data_pack[eind]
+                slice_y[pinds[ind]] = cur_class
+                ind += 1
+
+            if j == x_hat_class:
+                target_indx = np.random.choice(len(data_pack))
+                while target_indx in example_inds:
+                    target_indx = np.random.choice(len(data_pack))
+                slice_x[n_samples, :] = data_pack[target_indx]
+                target_y = cur_class
+
+        write_slice_x(slice_x, count, fold)
+        write_slice_y(slice_y, count, fold)
+        count = count + 1
+        write_target_y(target_y, fold)
+
+
+def create_train_instances(train_features, train_labels, fold):
+    _train_feats = {}
+    for _feats, _label in zip(train_features, train_labels):
+        _label_stuff = []
+        if _label in _train_feats:
+            _label_stuff = _train_feats[_label]
+            _label_stuff.append(_feats)
+        else:
+            _label_stuff.append(_feats)
+        _train_feats[_label] = _label_stuff
+
+    packslice(_train_feats, fold)
+
+
+def packslice_test(data_set, support_set, fold):
+    n_samples = samples_per_class * classes_per_set
+    support_cacheX = []
+    support_cacheY = []
+    target_cacheY = []
+    count = 0
+    support_X = np.zeros((n_samples, height, width * window * frames_per_second, 1))
+    support_y = np.zeros((n_samples,))
+    for i, _class in enumerate(support_set.keys()):
+        X = support_set[_class]
+        for j in range(len(X)):
+            support_X[(i * samples_per_class) + j, :] = X[j]
+            support_y[(i * samples_per_class) + j] = _class
+
+    for _class in data_set:
+        X = data_set[_class]
+        for iiii in range(len(X)):
+            slice_x = np.zeros((n_samples + 1, height, width * window * frames_per_second, 1))
+            slice_y = np.zeros((n_samples,))
+
+            slice_x[:n_samples, :] = support_X[:]
+            slice_x[n_samples, :] = X[iiii]
+
+            slice_y[:n_samples] = support_y[:]
+
+            target_y = _class
+
+            write_slice_x(slice_x, count, fold)
+            write_slice_y(slice_y, count, fold)
+            count = count + 1
+            write_target_y(target_y, fold)
+
+
+def create_test_instance(test_set, support_set, fold):
+    packslice_test(test_set, support_set, fold)
+
+
+def run_model_mn(fold, _train_features, _train_labels, _test_features, _test_labels):
     _train_features = np.array(_train_features)
+    _train_features = np.reshape(_train_features, (_train_features.shape[0], _train_features.shape[1], height, width))
+    _train_features = np.swapaxes(_train_features, 1, 2)
+    _train_features = np.swapaxes(_train_features, 2, 3)
+    _train_features = np.reshape(_train_features, (_train_features.shape[0], _train_features.shape[1],
+                                                   _train_features.shape[2] * _train_features.shape[3]))
+    _train_features = np.expand_dims(_train_features, 4)
     #print(_train_features.shape)
-    write_data(results_file, str(_train_features.shape))
 
     _test_features = np.array(_test_features)
+    _test_features = np.reshape(_test_features, (_test_features.shape[0], _test_features.shape[1], height, width))
+    _test_features = np.swapaxes(_test_features, 1, 2)
+    _test_features = np.swapaxes(_test_features, 2, 3)
+    _test_features = np.reshape(_test_features, (_test_features.shape[0], _test_features.shape[1],
+                                                 _test_features.shape[2] * _test_features.shape[3]))
+    _test_features = np.expand_dims(_test_features, 4)
     #print(_test_features.shape)
 
-    pm_model = build_model_1D()
-    pm_model.compile(optimizer='adadelta', loss='categorical_crossentropy', metrics=['accuracy'])
-    pm_model.fit(_train_features, _train_labels, verbose=0, batch_size=32, epochs=15, shuffle=True)
-    _predict_labels = pm_model.predict(_test_features, batch_size=64, verbose=0)
-    f_score = metrics.f1_score(_test_labels.argmax(axis=1), _predict_labels.argmax(axis=1), average='macro')
-    accuracy = metrics.accuracy_score(_test_labels.argmax(axis=1), _predict_labels.argmax(axis=1))
-    results = 'act' + ',' + str(accuracy)+',' + str(f_score)
-    write_data(results_file, str(results))
+    create_train_instances(_train_features, _train_labels, str(fold)+'/train')
 
-    _test_labels = pd.Series(_test_labels.argmax(axis=1), name='Actual')
-    _predict_labels = pd.Series(_predict_labels.argmax(axis=1), name='Predicted')
-    df_confusion = pd.crosstab(_test_labels, _predict_labels)
-    #print(df_confusion)
-    write_data(results_file, str(df_confusion))
+    test_support_set, _test_features = support_set_split(_test_features, _test_labels)
+    create_test_instance(_test_features, test_support_set, str(fold)+'/test')
 
 
 def run():
@@ -309,10 +434,7 @@ def run():
     train_features, train_labels, test_features, test_labels = all_split[0], all_split[1], all_split[2], all_split[3]
 
     for i in range(len(train_features)):
-        train_labels[i] = np_utils.to_categorical(train_labels[i], len(activity_list))
-        test_labels[i] = np_utils.to_categorical(test_labels[i], len(activity_list))
-        set_random_seed(2)
-        run_model_1D(train_features[i], train_labels[i], test_features[i], test_labels[i])
+        run_model_mn(i, train_features[i], train_labels[i], test_features[i], test_labels[i])
 
 
 run()

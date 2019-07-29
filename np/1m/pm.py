@@ -2,7 +2,7 @@ import os
 import csv
 import datetime as dt
 import numpy as np
-from keras.utils import np_utils
+from keras.utils import np_utils, Sequence, multi_gpu_model
 from keras.layers import Input, Dense, Conv2D, Conv1D, MaxPooling2D, MaxPooling1D, Flatten, BatchNormalization, LSTM, \
     Reshape, Dropout, TimeDistributed
 from keras.models import Model
@@ -296,6 +296,7 @@ def run_model_2D(_train_features, _train_labels, _test_features, _test_labels):
     #print(_test_features.shape)
 
     pm_model = build_model_2D()
+    #pm_model = multi_gpu_model(pm_model, gpus=2, cpu_merge=True, cpu_relocation=False)
     pm_model.compile(optimizer='adadelta', loss='categorical_crossentropy', metrics=['accuracy'])
     pm_model.fit(_train_features, _train_labels, verbose=1, batch_size=64, epochs=15, shuffle=True)
     _predict_labels = pm_model.predict(_test_features, batch_size=64, verbose=0)

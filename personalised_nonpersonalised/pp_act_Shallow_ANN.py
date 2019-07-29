@@ -3,13 +3,14 @@ import csv
 import datetime as dt
 import numpy as np
 import sklearn.metrics as metrics
-from keras.layers import Input, Dense, BatchNormalization, Conv1D, MaxPooling1D, Flatten
+from keras.layers import Input, Dense, BatchNormalization
 from keras.models import Model
 import pandas as pd
 import random
 from scipy import fftpack
 from keras.utils import np_utils
 from tensorflow import set_random_seed
+import sys
 
 random.seed(0)
 np.random.seed(1)
@@ -20,23 +21,19 @@ activity_list = ['01', '02', '03', '04', '05', '06', '07']
 id_list = range(len(activity_list))
 activity_id_dict = dict(zip(activity_list, id_list))
 
-path = '/Volumes/1708903/MEx/Data/acw/'
-results_file = '/Volumes/1708903/MEx/results/cnn_acw.csv'
+path = '/Volumes/1708903/MEx/Data/act/'
+results_file = '/Volumes/1708903/MEx/results/p_vs_np/pp_act.csv'
 
 frames_per_second = 100
 window = 5
 increment = 2
-feature_length = frames_per_second * window
-
-test_user_fold = [['01', '02', '03', '04', '05'],
-                  ['06', '07', '08', '09', '10'],
-                  ['11', '12', '13', '14', '15'],
-                  ['16', '17', '18', '19', '20'],
-                  ['21', '22', '23', '24', '25'],
-                  ['26', '27', '28', '29', '30']]
+dct_length = 60
+feature_length = dct_length * 3
 
 ac_min_length = 95*window
 ac_max_length = 100*window
+
+user_index = int(sys.argv[1])
 
 
 def write_data(file_path, data):
@@ -65,20 +62,21 @@ def _read(_file):
 def read():
     alldata = {}
     subjects = os.listdir(path)
-    for subject in subjects:
-        allactivities = {}
-        subject_path = os.path.join(path, subject)
-        activities = os.listdir(subject_path)
-        for activity in activities:
-            sensor = activity.split('.')[0].replace('_act', '')
-            activity_id = sensor.split('_')[0]
-            _data = _read(os.path.join(subject_path, activity), )
-            if activity_id in allactivities:
-                allactivities[activity_id][sensor] = _data
-            else:
-                allactivities[activity_id] = {}
-                allactivities[activity_id][sensor] = _data
-        alldata[subject] = allactivities
+    for index, subject in enumerate(subjects):
+        if index == user_index:
+            allactivities = {}
+            subject_path = os.path.join(path, subject)
+            activities = os.listdir(subject_path)
+            for activity in activities:
+                sensor = activity.split('.')[0].replace('_act', '')
+                activity_id = sensor.split('_')[0]
+                _data = _read(os.path.join(subject_path, activity), )
+                if activity_id in allactivities:
+                    allactivities[activity_id][sensor] = _data
+                else:
+                    allactivities[activity_id] = {}
+                    allactivities[activity_id][sensor] = _data
+            alldata[subject] = allactivities
     return alldata
 
 
@@ -149,10 +147,65 @@ def extract_features(_data):
     return _features
 
 
-def train_test_split(user_data, test_ids):
-    train_data = {key: value for key, value in user_data.items() if key not in test_ids}
-    test_data = {key: value for key, value in user_data.items() if key in test_ids}
-    return train_data, test_data
+def split(_data, _labels, test_indices):
+    _train_data = []
+    _train_labels = []
+    _test_data = []
+    _test_labels = []
+    index = 0
+    for _datum, _label in zip(_data, _labels):
+        if index in test_indices:
+            _test_data.append(_datum)
+            _test_labels.append(_label)
+        else:
+            _train_data.append(_datum)
+            _train_labels.append(_label)
+        index += 1
+    return _train_data, _train_labels, _test_data, _test_labels
+
+
+def train_test_split(_data, _labels):
+    indices = range(len(_data))
+    random.shuffle(indices)
+    split_length = int(len(_data)/6)
+    test_indices_1 = indices[0:split_length]
+    test_indices_2 = indices[split_length:split_length*2]
+    test_indices_3 = indices[split_length*2:split_length*3]
+    test_indices_4 = indices[split_length*3:split_length*4]
+    test_indices_5 = indices[split_length*4:split_length*5]
+    test_indices_6 = indices[split_length*5:split_length*6]
+
+    _train_data_1, _train_labels_1, _test_data_1, _test_labels_1 = split(_data, _labels, test_indices_1)
+    _train_data_2, _train_labels_2, _test_data_2, _test_labels_2 = split(_data, _labels, test_indices_2)
+    _train_data_3, _train_labels_3, _test_data_3, _test_labels_3 = split(_data, _labels, test_indices_3)
+    _train_data_4, _train_labels_4, _test_data_4, _test_labels_4 = split(_data, _labels, test_indices_4)
+    _train_data_5, _train_labels_5, _test_data_5, _test_labels_5 = split(_data, _labels, test_indices_5)
+    _train_data_6, _train_labels_6, _test_data_6, _test_labels_6 = split(_data, _labels, test_indices_6)
+
+    return [[_train_data_1, _train_data_2, _train_data_3, _train_data_4, _train_data_5, _train_data_6],
+            [_train_labels_1, _train_labels_2,_train_labels_3, _train_labels_4, _train_labels_5, _train_labels_6],
+            [_test_data_1, _test_data_2, _test_data_3, _test_data_4, _test_data_5, _test_data_6],
+            [_test_labels_1, _test_labels_2, _test_labels_3, _test_labels_4, _test_labels_5, _test_labels_6]]
+
+
+def dct(data):
+    new_data = []
+    for item in data:
+        if dct_length > 0:
+            x = [t[0] for t in item]
+            y = [t[1] for t in item]
+            z = [t[2] for t in item]
+
+            dct_x = np.abs(fftpack.dct(x, norm='ortho'))
+            dct_y = np.abs(fftpack.dct(y, norm='ortho'))
+            dct_z = np.abs(fftpack.dct(z, norm='ortho'))
+
+            v = np.array([])
+            v = np.concatenate((v, dct_x[:dct_length]))
+            v = np.concatenate((v, dct_y[:dct_length]))
+            v = np.concatenate((v, dct_z[:dct_length]))
+            new_data.append(v)
+    return new_data
 
 
 def flatten(_data):
@@ -165,7 +218,7 @@ def flatten(_data):
             activity_data = activities[activity]
             flatten_data.extend(activity_data)
             flatten_labels.extend([activity for i in range(len(activity_data))])
-    return flatten_data, flatten_labels
+    return dct(flatten_data), flatten_labels
 
 
 def pad(data, length):
@@ -216,20 +269,31 @@ def pad_features(_features):
     return new_features
 
 
-def build_1D_model():
-    _input = Input(shape=(feature_length, 3))
-    x = Conv1D(32, kernel_size=5, activation='relu')(_input)
-    x = MaxPooling1D(pool_size=2)(x)
+def build_shallow_model():
+    _input = Input(shape=(feature_length,))
+
+    x = Dense(100, activation='relu')(_input)
     x = BatchNormalization()(x)
-    x = Conv1D(64, kernel_size=5, activation='relu')(x)
-    x = MaxPooling1D(pool_size=2)(x)
+
+    x = Dense(len(activity_list), activation='softmax')(x)
+    model = Model(inputs=_input, outputs=x)
+    return model
+
+
+def build_deep_model():
+    _input = Input(shape=(feature_length,))
+
+    x = Dense(128, activation='relu')(_input)
     x = BatchNormalization()(x)
-    x = Conv1D(128, kernel_size=5, activation='relu')(x)
-    x = MaxPooling1D(pool_size=2)(x)
+    x = Dense(128, activation='relu')(x)
     x = BatchNormalization()(x)
-    x = Flatten()(x)
-    x = Dense(100, activation='relu')(x)
+    x = Dense(64, activation='relu')(x)
     x = BatchNormalization()(x)
+    x = Dense(64, activation='relu')(x)
+    x = BatchNormalization()(x)
+    x = Dense(32, activation='relu')(x)
+    x = BatchNormalization()(x)
+
     x = Dense(len(activity_list), activation='softmax')(x)
 
     model = Model(inputs=_input, outputs=x)
@@ -243,13 +307,13 @@ def _run_(_train_features, _train_labels, _test_features, _test_labels):
     _test_features = np.array(_test_features)
     print(_test_features.shape)
 
-    model = build_1D_model()
+    model = build_shallow_model()
     model.compile(optimizer='adadelta', loss='categorical_crossentropy', metrics=['accuracy'])
-    model.fit(_train_features, _train_labels, verbose=0, batch_size=64, epochs=100, shuffle=True)
+    model.fit(_train_features, _train_labels, verbose=0, batch_size=16, epochs=100, shuffle=True)
     _predict_labels = model.predict(_test_features, batch_size=64, verbose=0)
     f_score = metrics.f1_score(_test_labels.argmax(axis=1), _predict_labels.argmax(axis=1), average='macro')
     accuracy = metrics.accuracy_score(_test_labels.argmax(axis=1), _predict_labels.argmax(axis=1))
-    results = 'acw' + ',' + 'raw_1D' + ',' + str(accuracy)+',' + str(f_score)
+    results = str(accuracy)+',' + str(f_score)
     print(results)
     write_data(results_file, str(results))
 
@@ -267,24 +331,17 @@ def run():
     all_features = pad_features(all_features)
     all_features = frame_reduce(all_features)
 
-    all_f, all_l = flatten(all_features)
-    all_f = np.array(all_f)
-    print(all_f.shape)
-    all_f = np.reshape(all_f, (all_f.shape[0] * all_f.shape[1] * all_f.shape[2]))
-    print(all_f.shape)
-    print(np.max(all_f))
-    print(np.min(all_f))
+    all_features, all_labels = flatten(all_features)
 
-    for i in range(len(test_user_fold)):
+    all_split = train_test_split(all_features, all_labels)
+    train_features, train_labels, test_features, test_labels = all_split[0], all_split[1], all_split[2], all_split[3]
+
+    for i in range(len(train_features)):
+        train_labels[i] = np_utils.to_categorical(train_labels[i], len(activity_list))
+        test_labels[i] = np_utils.to_categorical(test_labels[i], len(activity_list))
         set_random_seed(2)
-        train_features, test_features = train_test_split(all_features, test_user_fold[i])
+        _run_(train_features[i], train_labels[i], test_features[i], test_labels[i])
 
-        train_features, train_labels = flatten(train_features)
-        test_features, test_labels = flatten(test_features)
-
-        train_labels = np_utils.to_categorical(train_labels, len(activity_list))
-        test_labels = np_utils.to_categorical(test_labels, len(activity_list))
-
-        #_run_(train_features, train_labels, test_features, test_labels)
 
 run()
+

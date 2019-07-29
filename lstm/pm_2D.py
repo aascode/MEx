@@ -2,31 +2,23 @@ import os
 import csv
 import datetime as dt
 import numpy as np
-import sklearn.metrics as metrics
-from keras.layers import Input, Dense, BatchNormalization, Conv1D, MaxPooling1D, Flatten
+from keras.layers import Input, Dense, BatchNormalization, Conv2D, MaxPooling2D, LSTM, TimeDistributed, Reshape
 from keras.models import Model
+import keras.backend as K
+import sklearn.metrics as metrics
 import pandas as pd
-import random
-from scipy import fftpack
 from keras.utils import np_utils
 from tensorflow import set_random_seed
+import random
 
 random.seed(0)
 np.random.seed(1)
 
-frame_size = 3*1
+frame_size = 32*16
 
 activity_list = ['01', '02', '03', '04', '05', '06', '07']
 id_list = range(len(activity_list))
 activity_id_dict = dict(zip(activity_list, id_list))
-
-path = '/Volumes/1708903/MEx/Data/acw/'
-results_file = '/Volumes/1708903/MEx/results/cnn_acw.csv'
-
-frames_per_second = 100
-window = 5
-increment = 2
-feature_length = frames_per_second * window
 
 test_user_fold = [['01', '02', '03', '04', '05'],
                   ['06', '07', '08', '09', '10'],
@@ -35,8 +27,15 @@ test_user_fold = [['01', '02', '03', '04', '05'],
                   ['21', '22', '23', '24', '25'],
                   ['26', '27', '28', '29', '30']]
 
-ac_min_length = 95*window
-ac_max_length = 100*window
+path = '/Volumes/1708903/MEx/Data/pm_scaled/1.0/'
+results_file = '/Volumes/1708903/MEx/results/lstm_pm.csv'
+
+frames_per_second = 1
+window = 5
+increment = 2
+
+pm_min_length = 14*window
+pm_max_length = 15*window
 
 
 def write_data(file_path, data):
@@ -70,7 +69,7 @@ def read():
         subject_path = os.path.join(path, subject)
         activities = os.listdir(subject_path)
         for activity in activities:
-            sensor = activity.split('.')[0].replace('_act', '')
+            sensor = activity.split('.')[0].replace('_pm', '')
             activity_id = sensor.split('_')[0]
             _data = _read(os.path.join(subject_path, activity), )
             if activity_id in allactivities:
@@ -121,6 +120,11 @@ def split_windows(data):
 
     frames = [a[1:] for a in data[:]]
     frames = np.array(frames)
+    _length = frames.shape[0]
+    frames = np.reshape(frames, (_length*frame_size))
+    frames = frames/max(frames)
+    frames = [float("{0:.5f}".format(f)) for f in frames.tolist()]
+    frames = np.reshape(np.array(frames), (_length, frame_size))
 
     while start + _window < end:
         _end = start + _window
@@ -147,6 +151,23 @@ def extract_features(_data):
             _activities[activity_id] = time_windows
         _features[subject] = _activities
     return _features
+
+
+def split(_data, _labels, test_indices):
+    _train_data = []
+    _train_labels = []
+    _test_data = []
+    _test_labels = []
+    index = 0
+    for _datum, _label in zip(_data, _labels):
+        if index in test_indices:
+            _test_data.append(_datum)
+            _test_labels.append(_label)
+        else:
+            _train_data.append(_datum)
+            _train_labels.append(_label)
+        index += 1
+    return _train_data, _train_labels, _test_data, _test_labels
 
 
 def train_test_split(user_data, test_ids):
@@ -203,36 +224,39 @@ def pad_features(_features):
             new_items = []
             for item in items:
                 _len = len(item)
-                if _len < ac_min_length:
+                if _len < pm_min_length:
                     continue
-                elif _len > ac_max_length:
-                    item = reduce(item, _len - ac_max_length)
+                elif _len > pm_max_length:
+                    item = reduce(item, _len - pm_max_length)
                     new_items.append(item)
-                elif _len < ac_max_length:
-                    item = pad(item, ac_max_length - _len)
+                elif _len < pm_max_length:
+                    item = pad(item, pm_max_length - _len)
                     new_items.append(item)
             new_activities[act] = new_items
         new_features[subject] = new_activities
     return new_features
 
 
-def build_1D_model():
-    _input = Input(shape=(feature_length, 3))
-    x = Conv1D(32, kernel_size=5, activation='relu')(_input)
-    x = MaxPooling1D(pool_size=2)(x)
+def build_2D_model():
+    _input = Input(shape=(window * frames_per_second, 32, 16, 1))
+    x = TimeDistributed(Conv2D(32, kernel_size=(1,5), activation='relu'))(_input)
+    x = TimeDistributed(MaxPooling2D(pool_size=2, data_format='channels_last'))(x)
+    x = TimeDistributed(BatchNormalization())(x)
+    x = TimeDistributed(Conv2D(64, kernel_size=(1,5), activation='relu'))(x)
+    x = TimeDistributed(MaxPooling2D(pool_size=2, data_format='channels_last'))(x)
+    x = TimeDistributed(BatchNormalization())(x)
+    x = TimeDistributed(Conv2D(128, kernel_size=(1,5), activation='relu'))(x)
+    x = TimeDistributed(MaxPooling2D(pool_size=2, data_format='channels_last'))(x)
+    x = TimeDistributed(BatchNormalization())(x)
+    x = Reshape((K.int_shape(x)[1], K.int_shape(x)[2]*K.int_shape(x)[3]*K.int_shape(x)[4]))(x)
+    x = LSTM(600)(x)
     x = BatchNormalization()(x)
-    x = Conv1D(64, kernel_size=5, activation='relu')(x)
-    x = MaxPooling1D(pool_size=2)(x)
-    x = BatchNormalization()(x)
-    x = Conv1D(128, kernel_size=5, activation='relu')(x)
-    x = MaxPooling1D(pool_size=2)(x)
-    x = BatchNormalization()(x)
-    x = Flatten()(x)
     x = Dense(100, activation='relu')(x)
     x = BatchNormalization()(x)
     x = Dense(len(activity_list), activation='softmax')(x)
 
     model = Model(inputs=_input, outputs=x)
+    model.summary()
     return model
 
 
@@ -240,16 +264,23 @@ def _run_(_train_features, _train_labels, _test_features, _test_labels):
     _train_features = np.array(_train_features)
     print(_train_features.shape)
 
+    _train_features = np.reshape(_train_features, (_train_features.shape[0], _train_features.shape[1], 32, 16))
+    _train_features = np.expand_dims(_train_features, 4)
+    print(_train_features.shape)
+
     _test_features = np.array(_test_features)
     print(_test_features.shape)
+    _test_features = np.reshape(_test_features, (_test_features.shape[0], _test_features.shape[1], 32, 16))
+    _test_features = np.expand_dims(_test_features, 4)
+    print(_test_features.shape)
 
-    model = build_1D_model()
+    model = build_2D_model()
     model.compile(optimizer='adadelta', loss='categorical_crossentropy', metrics=['accuracy'])
-    model.fit(_train_features, _train_labels, verbose=0, batch_size=64, epochs=100, shuffle=True)
+    model.fit(_train_features, _train_labels, verbose=0, batch_size=32, epochs=20, shuffle=True)
     _predict_labels = model.predict(_test_features, batch_size=64, verbose=0)
     f_score = metrics.f1_score(_test_labels.argmax(axis=1), _predict_labels.argmax(axis=1), average='macro')
     accuracy = metrics.accuracy_score(_test_labels.argmax(axis=1), _predict_labels.argmax(axis=1))
-    results = 'acw' + ',' + 'raw_1D' + ',' + str(accuracy)+',' + str(f_score)
+    results = 'pm' + ',' + '2D' + ',' + str(accuracy)+',' + str(f_score)
     print(results)
     write_data(results_file, str(results))
 
@@ -267,14 +298,6 @@ def run():
     all_features = pad_features(all_features)
     all_features = frame_reduce(all_features)
 
-    all_f, all_l = flatten(all_features)
-    all_f = np.array(all_f)
-    print(all_f.shape)
-    all_f = np.reshape(all_f, (all_f.shape[0] * all_f.shape[1] * all_f.shape[2]))
-    print(all_f.shape)
-    print(np.max(all_f))
-    print(np.min(all_f))
-
     for i in range(len(test_user_fold)):
         set_random_seed(2)
         train_features, test_features = train_test_split(all_features, test_user_fold[i])
@@ -285,6 +308,6 @@ def run():
         train_labels = np_utils.to_categorical(train_labels, len(activity_list))
         test_labels = np_utils.to_categorical(test_labels, len(activity_list))
 
-        #_run_(train_features, train_labels, test_features, test_labels)
+        _run_(train_features, train_labels, test_features, test_labels)
 
 run()

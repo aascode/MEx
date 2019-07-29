@@ -23,7 +23,7 @@ activity_id_dict = dict(zip(activity_list, id_list))
 
 #path = '/Volumes/1708903/MEx/Data/act/'
 path = '/home/mex/data/act/'
-results_file = '/home/mex/results/np_act.csv'
+results_file = '/home/mex/results/p_act.csv'
 
 frames_per_second = 100
 window = 5
@@ -126,11 +126,6 @@ def split_windows(data):
 
     frames = [a[1:] for a in data[:]]
     frames = np.array(frames)
-    _length = frames.shape[0]
-    frames = np.reshape(frames, (_length*frame_size))
-    frames = frames/max(frames)
-    frames = [float("{0:.5f}".format(f)) for f in frames.tolist()]
-    frames = np.reshape(np.array(frames), (_length, frame_size))
 
     while start + _window < end:
         _end = start + _window

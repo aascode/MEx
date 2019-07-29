@@ -68,14 +68,15 @@ def read():
         subject_path = os.path.join(path, subject)
         activities = os.listdir(subject_path)
         for activity in activities:
-            sensor = activity.split('.')[0].replace('_pm', '')
-            activity_id = sensor.split('_')[0]
-            _data = _read(os.path.join(subject_path, activity), )
-            if activity_id in allactivities:
-                allactivities[activity_id][sensor] = _data
-            else:
-                allactivities[activity_id] = {}
-                allactivities[activity_id][sensor] = _data
+            if not activity.startswith('.'):
+                sensor = activity.split('.')[0].replace('_pm', '')
+                activity_id = sensor.split('_')[0]
+                _data = _read(os.path.join(subject_path, activity), )
+                if activity_id in allactivities:
+                    allactivities[activity_id][sensor] = _data
+                else:
+                    allactivities[activity_id] = {}
+                    allactivities[activity_id][sensor] = _data
         alldata[subject] = allactivities
     return alldata
 
@@ -313,6 +314,6 @@ def run():
         train_labels = np_utils.to_categorical(train_labels, len(activity_list))
         test_labels = np_utils.to_categorical(test_labels, len(activity_list))
 
-        _run_(train_features, train_labels, test_features, test_labels)
+        #_run_(train_features, train_labels, test_features, test_labels)
 
 run()

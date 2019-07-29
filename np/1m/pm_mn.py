@@ -24,8 +24,8 @@ activity_id_dict = dict(zip(activity_list, id_list))
 
 #path = '/Volumes/1708903/MEx/Data/pm_scaled/1.0min/'
 #path = '/home/mex/data/pm_1.0/'
-results_file = '/Volumes/1708903/MEx/Data/p_pm_1.0.csv'
-pm_mn_stream_folder = '/Volumes/1708903/MEx/Data/p_pm_mn_stream_500_5_7_720_5_2_1'
+results_file = '/Volumes/1708903/MEx/Data/np_pm_1.0.csv'
+pm_mn_stream_folder = '/Volumes/1708903/MEx/Data/pm_mn_stream_500_5_7_720_5_2_1'
 
 height = 32
 width = 16
@@ -46,7 +46,6 @@ dc_min_length = 10*window
 dc_max_length = 15*window
 ac_min_length = 95*window
 ac_max_length = 100*window
-
 
 class MNGenerator(Sequence):
 
@@ -171,6 +170,7 @@ def embedding_2D(x):
 
 
 def run_model_mn(fold):
+
     numsupportset = samples_per_class * classes_per_set
     model_input = Input((numsupportset + 1, height, width * window * frames_per_second, 1))
     model_inputs = []
@@ -191,7 +191,7 @@ def run_model_mn(fold):
 
     test_file_names, test_labels = get_batch_data(str(fold), 'test')
     test_gen = MNGenerator(test_file_names, test_labels, len(test_labels)/5, True)
-    _predict_labels = model.evaluate_generator(test_gen, steps=5)
+    _predict_labels = model.predict_generator(test_gen, steps=5)
     #score = model.evaluate_generator(test_gen)
     #print(score)
     #write_data(results_file, ','.join(score))

@@ -3,36 +3,38 @@ import csv
 import datetime as dt
 import numpy as np
 from keras.utils import np_utils
-from keras.layers import Input, Dense, Conv2D, Conv1D, MaxPooling2D, MaxPooling1D, Flatten, BatchNormalization, LSTM, Reshape, TimeDistributed
+from keras.layers import Input, Dense, Conv2D, Conv1D, MaxPooling2D, MaxPooling1D, Flatten, BatchNormalization, LSTM, \
+    Reshape, Dropout, TimeDistributed
 from keras.models import Model
 from tensorflow import set_random_seed
-import cv2 as cv
-import keras.backend as K
 import sklearn.metrics as metrics
 import pandas as pd
+import os
+from scipy import fftpack
 import random
 
 random.seed(0)
 np.random.seed(1)
 
-frame_size = 3*1
+frame_size = 3
+dct_length = 60
+
+sensors = ['acw', 'act']
 
 activity_list = ['01', '02', '03', '04', '05', '06', '07']
 id_list = range(len(activity_list))
 activity_id_dict = dict(zip(activity_list, id_list))
 
-#path = '/Volumes/1708903/MEx/Data/act/'
-path = '/home/mex/data/act/'
-results_file = '/home/mex/results/np_act.csv'
+path = '/Volumes/1708903/MEx/Data/min/'
+results_file = 'np_acw_act_1.0.csv'
 
-frames_per_second = 100
+#test_user_fold = ['21', '22', '23', '24', '25']
+#test_user_fold = ['21']
+
+frames_per_second = 1
 window = 5
 increment = 2
 
-pm_min_length = 14*window
-pm_max_length = 15*window
-dc_min_length = 10*window
-dc_max_length = 15*window
 ac_min_length = 95*window
 ac_max_length = 100*window
 
@@ -47,30 +49,48 @@ def write_data(file_path, data):
     f.close()
 
 
-def _read(_file):
+def _read(_file, _length):
     reader = csv.reader(open(_file, "r"), delimiter=",")
     _data = []
     for row in reader:
-        if len(row[0]) == 19 and '.' not in row[0]:
-            row[0] = row[0]+'.000000'
-        temp = [dt.datetime.strptime(row[0], '%Y-%m-%d %H:%M:%S.%f')]
-        _temp = [float(f) for f in row[1:]]
-        temp.extend(_temp)
-        _data.append(temp)
+        if len(row) == _length:
+            if len(row[0]) == 19 and '.' not in row[0]:
+                row[0] = row[0]+'.000000'
+            temp = [dt.datetime.strptime(row[0], '%Y-%m-%d %H:%M:%S.%f')]
+            _temp = [float(f) for f in row[1:]]
+            temp.extend(_temp)
+            _data.append(temp)
     return _data
 
 
 def read():
     alldata = {}
-    subjects = os.listdir(path)
+    sensor_path = os.path.join(path, 'acw')
+    subjects = os.listdir(sensor_path)
     for subject in subjects:
         allactivities = {}
-        subject_path = os.path.join(path, subject)
+        subject_path = os.path.join(sensor_path, subject)
         activities = os.listdir(subject_path)
         for activity in activities:
-            sensor = activity.split('.')[0].replace('_act', '')
-            activity_id = sensor.split('_')[0]
-            _data = _read(os.path.join(subject_path, activity), )
+            sensor = activity.split('.')[0].split('_')[1]+'_'+activity.split('.')[0].split('_')[2]
+            activity_id = activity.split('.')[0].split('_')[0]
+            _data = _read(os.path.join(subject_path, activity), 4)
+            if activity_id in allactivities:
+                allactivities[activity_id][sensor] = _data
+            else:
+                allactivities[activity_id] = {}
+                allactivities[activity_id][sensor] = _data
+        alldata[subject] = allactivities
+    sensor_path = os.path.join(path, 'act')
+    subjects = os.listdir(sensor_path)
+    for subject in subjects:
+        allactivities = alldata[subject]
+        subject_path = os.path.join(sensor_path, subject)
+        activities = os.listdir(subject_path)
+        for activity in activities:
+            sensor = activity.split('.')[0].split('_')[1]+'_'+activity.split('.')[0].split('_')[2]
+            activity_id = activity.split('.')[0].split('_')[0]
+            _data = _read(os.path.join(subject_path, activity), 4)
             if activity_id in allactivities:
                 allactivities[activity_id][sensor] = _data
             else:
@@ -119,6 +139,11 @@ def split_windows(data):
 
     frames = [a[1:] for a in data[:]]
     frames = np.array(frames)
+    _length = frames.shape[0]
+    frames = np.reshape(frames, (_length*frame_size))
+    frames = frames/max(frames)
+    frames = [float("{0:.5f}".format(f)) for f in frames.tolist()]
+    frames = np.reshape(np.array(frames), (_length, frame_size))
 
     while start + _window < end:
         _end = start + _window
@@ -130,19 +155,50 @@ def split_windows(data):
     return outputs
 
 
-# single sensor
+def dct(windows):
+    dct_window = []
+    for tw in windows:
+        x = [t[0] for t in tw]
+        y = [t[1] for t in tw]
+        z = [t[2] for t in tw]
+
+        dct_x = np.abs(fftpack.dct(x, norm='ortho'))
+        dct_y = np.abs(fftpack.dct(y, norm='ortho'))
+        dct_z = np.abs(fftpack.dct(z, norm='ortho'))
+
+        v = np.array([])
+        v = np.concatenate((v, dct_x[:dct_length]))
+        v = np.concatenate((v, dct_y[:dct_length]))
+        v = np.concatenate((v, dct_z[:dct_length]))
+
+        dct_window.append(v)
+    return dct_window
+
+
+def join(acw, act):
+    _all = []
+    for w, t in zip(acw, act):
+        _all.append(np.append(w, t))
+    return _all
+
+
 def extract_features(_data):
     _features = {}
     for subject in _data:
         _activities = {}
         activities = _data[subject]
         for activity in activities:
-            time_windows = []
+            time_windows = {}
             activity_id = activity_id_dict.get(activity)
             activity_data = activities[activity]
+            sensors = []
             for sensor in activity_data:
-                time_windows.extend(split_windows(activity_data[sensor]))
-            _activities[activity_id] = time_windows
+                if sensor in time_windows:
+                    time_windows[sensor].extend(split_windows(activity_data[sensor]))
+                else:
+                    time_windows[sensor] = split_windows(activity_data[sensor])
+            _activities[activity_id] = join(dct(time_windows[activity_data.keys()[0]]),
+                                            dct(time_windows[activity_data.keys()[1]]))
         _features[subject] = _activities
     return _features
 
@@ -250,58 +306,38 @@ def pad_features(_features):
 
 
 def build_model_1D():
-    _input = Input(shape=(ac_max_length, 3))
+    _input = Input(shape=(dct_length*3*len(sensors),))
     x = Conv1D(32, kernel_size=5, activation='relu')(_input)
     x = MaxPooling1D(pool_size=2)(x)
     x = BatchNormalization()(x)
-    x = Conv1D(64, kernel_size=5, activation='relu')(x)
-    x = MaxPooling1D(pool_size=2)(x)
-    x = BatchNormalization()(x)
-    x = Conv1D(128, kernel_size=5, activation='relu')(x)
-    x = MaxPooling1D(pool_size=2)(x)
-    x = BatchNormalization()(x)
-    x = Flatten()(x)
-    x = Dense(720, activation='relu')(x)
-    x = BatchNormalization()(x)
     x = Dense(100, activation='relu')(x)
+    x = BatchNormalization()(x)
     x = Dense(len(activity_list), activation='softmax')(x)
 
     model = Model(inputs=_input, outputs=x)
-    #print(model.summary())
     return model
 
 
 def run_model_1D(_train_features, _train_labels, _test_features, _test_labels):
-    # (None, ac_max_length, 3)
     _train_features = np.array(_train_features)
-    #print(_train_features.shape)
-    write_data(results_file, str(_train_features.shape))
+    _train_features = np.expand_dims(_train_features, 3)
+    print(_train_features.shape)
 
     _test_features = np.array(_test_features)
-    #print(_test_features.shape)
+    _test_features = np.expand_dims(_test_features, 3)
+    print(_test_features.shape)
 
-    pm_model = build_model_1D()
-    pm_model.compile(optimizer='adadelta', loss='categorical_crossentropy', metrics=['accuracy'])
-    pm_model.fit(_train_features, _train_labels, verbose=0, batch_size=32, epochs=15, shuffle=True)
-    _predict_labels = pm_model.predict(_test_features, batch_size=64, verbose=0)
-    f_score = metrics.f1_score(_test_labels.argmax(axis=1), _predict_labels.argmax(axis=1), average='macro')
-    accuracy = metrics.accuracy_score(_test_labels.argmax(axis=1), _predict_labels.argmax(axis=1))
-    results = 'act' + ',' + str(accuracy)+',' + str(f_score)
-    write_data(results_file, str(results))
-
-    _test_labels = pd.Series(_test_labels.argmax(axis=1), name='Actual')
-    _predict_labels = pd.Series(_predict_labels.argmax(axis=1), name='Predicted')
-    df_confusion = pd.crosstab(_test_labels, _predict_labels)
-    #print(df_confusion)
-    write_data(results_file, str(df_confusion))
+    _model = build_model_1D()
+    _model.compile(optimizer='adadelta', loss='categorical_crossentropy', metrics=['accuracy'])
+    _model.fit(_train_features, _train_labels, verbose=1, batch_size=64, epochs=15, shuffle=True)
+    results = _model.evaluate(_test_features, _test_labels, batch_size=64, verbose=0)
+    print(results)
 
 
 def run():
     all_data = read()
     all_features = extract_features(all_data)
     all_data = None
-    all_features = pad_features(all_features)
-    all_features = frame_reduce(all_features)
 
     all_features, all_labels = flatten(all_features)
 

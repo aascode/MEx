@@ -1,0 +1,10 @@
+CUDA_VISIBLE_DEVICES=6 python ./pm_mn.py > output_pm.txt
+CUDA_VISIBLE_DEVICES=6 python ./pm_mn.py > output_pm.txt
+CUDA_VISIBLE_DEVICES=6 python ./pm_mn.py > output_pm.txt
+CUDA_VISIBLE_DEVICES=6 python ./pm_mn.py > output_pm.txt
+CUDA_VISIBLE_DEVICES=6 python ./pm_mn.py > output_pm.txt
+CUDA_VISIBLE_DEVICES=6 python ./pm_mn.py > output_pm.txt
+CUDA_VISIBLE_DEVICES=6 python ./pm_mn.py > output_pm.txt
+CUDA_VISIBLE_DEVICES=6 python ./pm_mn.py > output_pm.txt
+CUDA_VISIBLE_DEVICES=6 python ./pm_mn.py > output_pm.txt
+CUDA_VISIBLE_DEVICES=6 python ./pm_mn.py > output_pm.txt

@@ -238,13 +238,13 @@ def pad_features(_features):
 
 def build_1D_model():
     _input = Input(shape=(feature_length, 1))
-    x = Conv1D(32, kernel_size=3, activation='relu')(_input)
+    x = Conv1D(32, kernel_size=5, activation='relu')(_input)
     x = MaxPooling1D(pool_size=2)(x)
     x = BatchNormalization()(x)
-    x = Conv1D(64, kernel_size=3, activation='relu')(x)
+    x = Conv1D(64, kernel_size=5, activation='relu')(x)
     x = MaxPooling1D(pool_size=2)(x)
     x = BatchNormalization()(x)
-    x = Conv1D(128, kernel_size=3, activation='relu')(x)
+    x = Conv1D(128, kernel_size=5, activation='relu')(x)
     x = MaxPooling1D(pool_size=2)(x)
     x = BatchNormalization()(x)
     x = Flatten()(x)
