@@ -1,0 +1,10 @@
+CUDA_VISIBLE_DEVICES=2 python ./act.py > output_ac.txt
+CUDA_VISIBLE_DEVICES=2 python ./act.py > output_ac.txt
+CUDA_VISIBLE_DEVICES=2 python ./act.py > output_ac.txt
+CUDA_VISIBLE_DEVICES=2 python ./act.py > output_ac.txt
+CUDA_VISIBLE_DEVICES=2 python ./act.py > output_ac.txt
+CUDA_VISIBLE_DEVICES=2 python ./act.py > output_ac.txt
+CUDA_VISIBLE_DEVICES=2 python ./act.py > output_ac.txt
+CUDA_VISIBLE_DEVICES=2 python ./act.py > output_ac.txt
+CUDA_VISIBLE_DEVICES=2 python ./act.py > output_ac.txt
+CUDA_VISIBLE_DEVICES=2 python ./act.py > output_ac.txt

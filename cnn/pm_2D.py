@@ -304,6 +304,14 @@ def run():
     all_features = pad_features(all_features)
     all_features = frame_reduce(all_features)
 
+    all_f, all_l = flatten(all_features)
+    all_f = np.array(all_f)
+    print(all_f.shape)
+    all_f = np.reshape(all_f, (all_f.shape[0] * all_f.shape[1] * all_f.shape[2]))
+    print(all_f.shape)
+    print(np.max(all_f))
+    print(np.min(all_f))
+
     for i in range(len(test_user_fold)):
         set_random_seed(2)
         train_features, test_features = train_test_split(all_features, test_user_fold[i])
@@ -314,6 +322,6 @@ def run():
         train_labels = np_utils.to_categorical(train_labels, len(activity_list))
         test_labels = np_utils.to_categorical(test_labels, len(activity_list))
 
-        #_run_(train_features, train_labels, test_features, test_labels)
+        _run_(train_features, train_labels, test_features, test_labels)
 
 run()

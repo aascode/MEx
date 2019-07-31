@@ -285,6 +285,6 @@ def run():
         train_labels = np_utils.to_categorical(train_labels, len(activity_list))
         test_labels = np_utils.to_categorical(test_labels, len(activity_list))
 
-        #_run_(train_features, train_labels, test_features, test_labels)
+        _run_(train_features, train_labels, test_features, test_labels)
 
 run()
