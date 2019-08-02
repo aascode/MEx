@@ -37,7 +37,7 @@ test_user_fold = [['01', '02', '03', '04', '05'],
                   ['21', '22', '23', '24', '25'],
                   ['26', '27', '28', '29', '30']]
 
-ac_min_length = 95*window
+ac_min_length = frames_per_second*window
 ac_max_length = 100*window
 
 

@@ -27,7 +27,7 @@ frames_per_second = 1
 window = 5
 increment = 2
 
-pm_min_length = 14*window
+pm_min_length = frames_per_second*window
 pm_max_length = 15*window
 
 user_index = int(sys.argv[1])
@@ -262,6 +262,8 @@ def pad_features(_features):
                     new_items.append(item)
                 elif _len < pm_max_length:
                     item = pad(item, pm_max_length - _len)
+                    new_items.append(item)
+                elif _len == pm_max_length:
                     new_items.append(item)
             new_activities[act] = new_items
         new_features[subject] = new_activities

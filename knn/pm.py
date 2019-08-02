@@ -24,8 +24,7 @@ test_user_fold = [['01', '02', '03', '04', '05'],
                   ['21', '22', '23', '24', '25'],
                   ['26', '27', '28', '29', '30']]
 
-path = '/Volumes/1708903/MEx/Data/pm_scaled/1.0/'
-# path = '/home/mex/data/pm_1.0/'
+path = '/Volumes/1708903/MEx/Data/pm_scaled/1.0_1.0/'
 results_file = '/Volumes/1708903/MEx/results/knn_pm.csv'
 
 frames_per_second = 1
@@ -33,7 +32,7 @@ window = 5
 increment = 2
 k = 3
 
-pm_min_length = 14*window
+pm_min_length = frames_per_second*window
 pm_max_length = 15*window
 
 
@@ -97,6 +96,7 @@ def frame_reduce(_data):
     if frames_per_second == 0:
         return _data
     _features = {}
+    count = 0
     for subject in _data:
         _activities = {}
         activities = _data[subject]
@@ -104,9 +104,11 @@ def frame_reduce(_data):
             activity_data = activities[activity]
             time_windows = []
             for item in activity_data:
+                count += 1
                 time_windows.append(trim(item))
             _activities[activity] = time_windows
         _features[subject] = _activities
+    print(count)
     return _features
 
 
@@ -226,10 +228,12 @@ def pad_features(_features):
                 if _len < pm_min_length:
                     continue
                 elif _len > pm_max_length:
-                    item = reduce(item, _len - pm_max_length)
-                    new_items.append(item)
+                    _item = reduce(item, _len - pm_max_length)
+                    new_items.append(_item)
                 elif _len < pm_max_length:
-                    item = pad(item, pm_max_length - _len)
+                    _item = pad(item, pm_max_length - _len)
+                    new_items.append(_item)
+                elif _len == pm_max_length:
                     new_items.append(item)
             new_activities[act] = new_items
         new_features[subject] = new_activities

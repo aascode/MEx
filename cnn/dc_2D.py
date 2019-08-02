@@ -16,7 +16,7 @@ activity_list = ['01', '02', '03', '04', '05', '06', '07']
 id_list = range(len(activity_list))
 activity_id_dict = dict(zip(activity_list, id_list))
 
-path = '/Volumes/1708903/MEx/Data/dc_scaled/0.05/'
+path = '/Volumes/1708903/MEx/Data/dc_scaled/0.05_0.05/'
 results_file = '/Volumes/1708903/MEx/results/cnn_dc.csv'
 
 test_user_fold = [['01', '02', '03', '04', '05'],
@@ -30,7 +30,7 @@ frames_per_second = 1
 window = 5
 increment = 2
 
-dc_min_length = 10*window
+dc_min_length = frames_per_second*window
 dc_max_length = 15*window
 
 
@@ -206,6 +206,8 @@ def pad_features(_features):
                 elif _len < dc_max_length:
                     item = pad(item, dc_max_length - _len)
                     new_items.append(item)
+                elif _len == dc_max_length:
+                    new_items.append(item)
             new_activities[act] = new_items
         new_features[subject] = new_activities
     return new_features
@@ -213,16 +215,15 @@ def pad_features(_features):
 
 def build_2D_model():
     _input = Input(shape=(12, 16 * window * frames_per_second, 1))
-    x = Conv2D(32, kernel_size=(1,5), activation='relu')(_input)
+    x = Conv2D(32, kernel_size=(3,3), activation='relu')(_input)
     x = MaxPooling2D(pool_size=2, data_format='channels_last')(x)
     x = BatchNormalization()(x)
-    x = Conv2D(64, kernel_size=(1,5), activation='relu')(x)
-    x = MaxPooling2D(pool_size=2, data_format='channels_last')(x)
-    x = BatchNormalization()(x)
-    x = Conv2D(128, kernel_size=(1,5), activation='relu')(x)
+    x = Conv2D(64, kernel_size=(3,3), activation='relu')(x)
     x = MaxPooling2D(pool_size=2, data_format='channels_last')(x)
     x = BatchNormalization()(x)
     x = Flatten()(x)
+    x = Dense(600, activation='relu')(x)
+    x = BatchNormalization()(x)
     x = Dense(100, activation='relu')(x)
     x = BatchNormalization()(x)
     x = Dense(len(activity_list), activation='softmax')(x)

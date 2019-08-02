@@ -229,6 +229,8 @@ def pad_features(_features):
                 elif _len < ac_max_length:
                     item = pad(item, ac_max_length - _len)
                     new_items.append(item)
+                elif _len == ac_max_length:
+                    new_items.append(item)
             new_activities[act] = new_items
         new_features[subject] = new_activities
     return new_features
@@ -244,7 +246,7 @@ def run_svm(_train_features, _train_labels, _test_features, _test_labels):
     model = SVC()
     model.fit(_train_features, _train_labels)
     _predict_labels = model.predict(_test_features)
-    f_score = metrics.f1_score(_test_labels, _predict_labels, average='weighted')
+    f_score = metrics.f1_score(_test_labels, _predict_labels, average='macro')
     accuracy = metrics.accuracy_score(_test_labels, _predict_labels)
     results = 'act' + ',' + str(accuracy)+',' + str(f_score)
     print(results)

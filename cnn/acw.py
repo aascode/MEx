@@ -232,6 +232,8 @@ def pad_features(_features):
                 elif _len < ac_max_length:
                     item = pad(item, ac_max_length - _len)
                     new_items.append(item)
+                elif _len == ac_max_length:
+                    new_items.append(item)
             new_activities[act] = new_items
         new_features[subject] = new_activities
     return new_features

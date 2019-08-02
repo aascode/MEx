@@ -211,6 +211,8 @@ def pad_features(_features):
                 elif _len < ac_max_length:
                     item = pad(item, ac_max_length - _len)
                     new_items.append(item)
+                elif _len == ac_max_length:
+                    new_items.append(item)
             new_activities[act] = new_items
         new_features[subject] = new_activities
     return new_features
@@ -224,15 +226,15 @@ def build_1D_model():
     x = Conv1D(64, kernel_size=5, activation='relu')(x)
     x = MaxPooling1D(pool_size=2)(x)
     x = BatchNormalization()(x)
-    x = Conv1D(128, kernel_size=5, activation='relu')(x)
-    x = MaxPooling1D(pool_size=2)(x)
-    x = BatchNormalization()(x)
     x = Flatten()(x)
+    x = Dense(600, activation='relu')(x)
+    x = BatchNormalization()(x)
     x = Dense(100, activation='relu')(x)
     x = BatchNormalization()(x)
     x = Dense(len(activity_list), activation='softmax')(x)
 
     model = Model(inputs=_input, outputs=x)
+    model.summary()
     return model
 
 

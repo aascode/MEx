@@ -17,8 +17,8 @@ activity_list = ['01', '02', '03', '04', '05', '06', '07']
 id_list = range(len(activity_list))
 activity_id_dict = dict(zip(activity_list, id_list))
 
-path = '/Volumes/1708903/MEx/Data/pre_4/'
-dump_file = '/Volumes/1708903/MEx/coursework/acw_act_pm'
+path = '/Volumes/1708903/MEx/Data/pre_5/'
+dump_file = '/Users/anjanawijekoon/MEx_wtpm/acw_act_pm'
 
 frames_per_second = 15
 
@@ -96,7 +96,7 @@ def read():
                 activity_map['act'].append(_act_data_)
 
                 write(activity_map, subject, activity)
-            elif len(sensors) == 6:
+            elif len(sensors) == 8:
                 _data = _read(os.path.join(activity_path, 'pm_1.csv'), 513)
                 _times = [d[0] for d in _data]
 

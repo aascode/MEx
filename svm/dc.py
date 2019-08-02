@@ -15,8 +15,8 @@ activity_list = ['01', '02', '03', '04', '05', '06', '07']
 id_list = range(len(activity_list))
 activity_id_dict = dict(zip(activity_list, id_list))
 
-path = '/Volumes/1708903/MEx/Data/dc_scaled/0.05/'
-results_file = '/Volumes/1708903/MEx/results/ae_svm_dc.csv'
+path = '/Volumes/1708903/MEx/Data/dc_scaled/0.05_0.05/'
+results_file = '/Volumes/1708903/MEx/results/svm_dc.csv'
 
 test_user_fold = [['01', '02', '03', '04', '05'],
                   ['06', '07', '08', '09', '10'],
@@ -29,7 +29,7 @@ frames_per_second = 1
 window = 5
 increment = 2
 
-dc_min_length = 10*window
+dc_min_length = frames_per_second*window
 dc_max_length = 15*window
 
 
@@ -205,6 +205,8 @@ def pad_features(_features):
                 elif _len < dc_max_length:
                     item = pad(item, dc_max_length - _len)
                     new_items.append(item)
+                elif _len == dc_max_length:
+                    new_items.append(item)
             new_activities[act] = new_items
         new_features[subject] = new_activities
     return new_features
@@ -229,25 +231,25 @@ def run_svm(_train_features, _train_labels, _test_features, _test_labels):
 
     # encoded feature representation
     # start
-    input_img = Input(shape=(_train_features.shape[1],))
-    encoded = Dense(512, activation='relu')(input_img)
-    encoded = Dense(256, activation='relu')(encoded)
-    encoded = Dense(64, activation='relu')(encoded)
+    # input_img = Input(shape=(_train_features.shape[1],))
+    # encoded = Dense(512, activation='relu')(input_img)
+    # encoded = Dense(256, activation='relu')(encoded)
+    # encoded = Dense(64, activation='relu')(encoded)
 
-    decoded = Dense(256, activation='relu')(encoded)
-    decoded = Dense(512, activation='relu')(decoded)
-    decoded = Dense(_train_features.shape[1], activation='sigmoid')(decoded)
+    # decoded = Dense(256, activation='relu')(encoded)
+    # decoded = Dense(512, activation='relu')(decoded)
+    # decoded = Dense(_train_features.shape[1], activation='sigmoid')(decoded)
 
-    autoencoder = Model(input_img, decoded)
-    encoder = Model(input_img, encoded)
-    autoencoder.compile(optimizer='adam', loss='binary_crossentropy')
-    autoencoder.fit(_train_features, _train_features, epochs=50, batch_size=32, shuffle=True, verbose=0)
+    # autoencoder = Model(input_img, decoded)
+    # encoder = Model(input_img, encoded)
+    # autoencoder.compile(optimizer='adam', loss='binary_crossentropy')
+    # autoencoder.fit(_train_features, _train_features, epochs=50, batch_size=32, shuffle=True, verbose=0)
 
-    _train_features = encoder.predict(_train_features)
-    _test_features = encoder.predict(_test_features)
+    # _train_features = encoder.predict(_train_features)
+    # _test_features = encoder.predict(_test_features)
 
-    print(_train_features.shape)
-    print(_test_features.shape)
+    # print(_train_features.shape)
+    # print(_test_features.shape)
 
     # end
 

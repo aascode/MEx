@@ -24,7 +24,7 @@ results_file = '/Volumes/1708903/MEx/results/knn_acw.csv'
 frames_per_second = 100
 window = 5
 increment = 2
-k = 3
+k = 1
 dct_length = 60
 
 test_user_fold = [['01', '02', '03', '04', '05'],
@@ -230,6 +230,8 @@ def pad_features(_features):
                 elif _len < ac_max_length:
                     item = pad(item, ac_max_length - _len)
                     new_items.append(item)
+                elif _len == ac_max_length:
+                    new_items.append(item)
             new_activities[act] = new_items
         new_features[subject] = new_activities
     return new_features
@@ -245,7 +247,7 @@ def run_knn(_train_features, _train_labels, _test_features, _test_labels):
     model = KNeighborsClassifier(n_neighbors=k, weights='distance')
     model.fit(_train_features, _train_labels)
     _predict_labels = model.predict(_test_features)
-    f_score = metrics.f1_score(_test_labels, _predict_labels, average='weighted')
+    f_score = metrics.f1_score(_test_labels, _predict_labels, average='macro')
     accuracy = metrics.accuracy_score(_test_labels, _predict_labels)
     results = 'acw' + ',' + str(k) + ',' + str(accuracy)+',' + str(f_score)
     print(results)

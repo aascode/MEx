@@ -6,10 +6,8 @@ from scipy import fftpack
 
 file_name = 'acw_act_pm_'
 
-epochs = 15
-batch_size = 64
-increment = 3
-window = 10
+increment = 2
+window = 5
 frame_size = 3
 dct_length = 60
 

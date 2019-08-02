@@ -6,7 +6,6 @@ import os
 
 path = '/Users/anjanawijekoon/MEx_wtpm/'
 
-
 def average(p_data):
     new_p_data = []
     for i in range(len(p_data[0])):
@@ -31,9 +30,9 @@ def flatten(data):
             activity_data = activities[activity]
             for w, t, p in zip(activity_data[0], activity_data[1], activity_data[2]):
                 temp = [subject]
-                temp.extend(w)
-                temp.extend(t)
-                temp.extend(average(p))
+                temp.extend([float("{0:.6f}".format(f)) for f in w])
+                temp.extend([float("{0:.6f}".format(f)) for f in t])
+                temp.extend([float("{0:.6f}".format(f)) for f in average(p)])
                 temp.append(activity)
                 write_data('mex_'+str(mex.window)+'_'+str(mex.increment)+'.csv', ','.join([str(t) for t in temp]))
 
