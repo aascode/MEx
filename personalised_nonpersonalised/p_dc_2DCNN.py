@@ -16,8 +16,8 @@ activity_list = ['01', '02', '03', '04', '05', '06', '07']
 id_list = range(len(activity_list))
 activity_id_dict = dict(zip(activity_list, id_list))
 
-path = '/Volumes/1708903/MEx/Data/dc_scaled/0.05/'
-results_file = '/Volumes/1708903/MEx/results/p_vs_np/p_dc.csv'
+path = '/home/mex/data/dc_scaled/0.05_0.05/'
+results_file = '/home/mex/results_lopo/p_vs_np/dc.csv'
 
 frames_per_second = 1
 window = 5
@@ -157,25 +157,9 @@ def split(_data, _labels, test_indices):
 def train_test_split(_data, _labels):
     indices = range(len(_data))
     random.shuffle(indices)
-    split_length = int(len(_data)/6)
-    test_indices_1 = indices[0:split_length]
-    test_indices_2 = indices[split_length:split_length*2]
-    test_indices_3 = indices[split_length*2:split_length*3]
-    test_indices_4 = indices[split_length*3:split_length*4]
-    test_indices_5 = indices[split_length*4:split_length*5]
-    test_indices_6 = indices[split_length*5:split_length*6]
-
-    _train_data_1, _train_labels_1, _test_data_1, _test_labels_1 = split(_data, _labels, test_indices_1)
-    _train_data_2, _train_labels_2, _test_data_2, _test_labels_2 = split(_data, _labels, test_indices_2)
-    _train_data_3, _train_labels_3, _test_data_3, _test_labels_3 = split(_data, _labels, test_indices_3)
-    _train_data_4, _train_labels_4, _test_data_4, _test_labels_4 = split(_data, _labels, test_indices_4)
-    _train_data_5, _train_labels_5, _test_data_5, _test_labels_5 = split(_data, _labels, test_indices_5)
-    _train_data_6, _train_labels_6, _test_data_6, _test_labels_6 = split(_data, _labels, test_indices_6)
-
-    return [[_train_data_1, _train_data_2, _train_data_3, _train_data_4, _train_data_5, _train_data_6],
-            [_train_labels_1, _train_labels_2,_train_labels_3, _train_labels_4, _train_labels_5, _train_labels_6],
-            [_test_data_1, _test_data_2, _test_data_3, _test_data_4, _test_data_5, _test_data_6],
-            [_test_labels_1, _test_labels_2, _test_labels_3, _test_labels_4, _test_labels_5, _test_labels_6]]
+    split_length = int(len(_data)/30)
+    test_indices = indices[0:split_length]
+    return split(_data, _labels, test_indices)
 
 
 def flatten(_data):
@@ -243,22 +227,20 @@ def pad_features(_features):
 
 def build_2D_model():
     _input = Input(shape=(12, 16 * window * frames_per_second, 1))
-    x = Conv2D(32, kernel_size=(1,5), activation='relu')(_input)
+    x = Conv2D(32, kernel_size=(3,3), activation='relu')(_input)
     x = MaxPooling2D(pool_size=2, data_format='channels_last')(x)
     x = BatchNormalization()(x)
-    x = Conv2D(64, kernel_size=(1,5), activation='relu')(x)
-    x = MaxPooling2D(pool_size=2, data_format='channels_last')(x)
-    x = BatchNormalization()(x)
-    x = Conv2D(128, kernel_size=(1,5), activation='relu')(x)
+    x = Conv2D(64, kernel_size=(3,3), activation='relu')(x)
     x = MaxPooling2D(pool_size=2, data_format='channels_last')(x)
     x = BatchNormalization()(x)
     x = Flatten()(x)
+    x = Dense(600, activation='relu')(x)
+    x = BatchNormalization()(x)
     x = Dense(100, activation='relu')(x)
     x = BatchNormalization()(x)
     x = Dense(len(activity_list), activation='softmax')(x)
 
     model = Model(inputs=_input, outputs=x)
-    model.summary()
     return model
 
 
@@ -286,11 +268,11 @@ def _run_(_train_features, _train_labels, _test_features, _test_labels):
 
     model = build_2D_model()
     model.compile(optimizer='adadelta', loss='categorical_crossentropy', metrics=['accuracy'])
-    model.fit(_train_features, _train_labels, verbose=0, batch_size=32, epochs=100, shuffle=True)
+    model.fit(_train_features, _train_labels, verbose=0, batch_size=32, epochs=50, shuffle=True)
     _predict_labels = model.predict(_test_features, batch_size=64, verbose=0)
     f_score = metrics.f1_score(_test_labels.argmax(axis=1), _predict_labels.argmax(axis=1), average='macro')
     accuracy = metrics.accuracy_score(_test_labels.argmax(axis=1), _predict_labels.argmax(axis=1))
-    results = str(accuracy)+',' + str(f_score)
+    results = 'p,'+str(accuracy)+',' + str(f_score)
     print(results)
     write_data(results_file, str(results))
 
@@ -301,23 +283,16 @@ def _run_(_train_features, _train_labels, _test_features, _test_labels):
     write_data(results_file, str(df_confusion))
 
 
-def run():
-    all_data = read()
-    all_features = extract_features(all_data)
-    all_data = None
-    all_features = pad_features(all_features)
-    all_features = frame_reduce(all_features)
+all_data = read()
+all_features = extract_features(all_data)
+all_data = None
+all_features = pad_features(all_features)
+all_features = frame_reduce(all_features)
 
-    all_features, all_labels = flatten(all_features)
+all_features, all_labels = flatten(all_features)
 
-    all_split = train_test_split(all_features, all_labels)
-    train_features, train_labels, test_features, test_labels = all_split[0], all_split[1], all_split[2], all_split[3]
-
-    for i in range(len(train_features)):
-        train_labels[i] = np_utils.to_categorical(train_labels[i], len(activity_list))
-        test_labels[i] = np_utils.to_categorical(test_labels[i], len(activity_list))
-        set_random_seed(2)
-        _run_(train_features[i], train_labels[i], test_features[i], test_labels[i])
-
-
-run()
+for i in range(30):
+    train_features, train_labels, test_features, test_labels = train_test_split(all_features, all_labels)
+    train_labels = np_utils.to_categorical(train_labels, len(activity_list))
+    test_labels = np_utils.to_categorical(test_labels, len(activity_list))
+    _run_(train_features, train_labels, test_features, test_labels)

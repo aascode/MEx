@@ -17,15 +17,8 @@ activity_list = ['01', '02', '03', '04', '05', '06', '07']
 id_list = range(len(activity_list))
 activity_id_dict = dict(zip(activity_list, id_list))
 
-test_user_fold = [['01', '02', '03', '04', '05'],
-                  ['06', '07', '08', '09', '10'],
-                  ['11', '12', '13', '14', '15'],
-                  ['16', '17', '18', '19', '20'],
-                  ['21', '22', '23', '24', '25'],
-                  ['26', '27', '28', '29', '30']]
-
-path = '/Volumes/1708903/MEx/Data/pm_scaled/1.0_1.0/'
-results_file = '/Volumes/1708903/MEx/results/knn_pm.csv'
+path = '/MEx/Data/pm_scaled/1.0_1.0/'
+results_file = 'knn_pm.csv'
 
 frames_per_second = 1
 window = 5
@@ -269,20 +262,17 @@ def run_knn(_train_features, _train_labels, _test_features, _test_labels):
     write_data(results_file, str(df_confusion))
 
 
-def run():
-    all_data = read()
-    all_features = extract_features(all_data)
-    all_data = None
-    all_features = pad_features(all_features)
-    all_features = frame_reduce(all_features)
+all_data = read()
+all_features = extract_features(all_data)
+all_data = None
+all_features = pad_features(all_features)
+all_features = frame_reduce(all_features)
+all_users = list(all_features.keys())
 
-    for i in range(len(test_user_fold)):
-        train_features, test_features = train_test_split(all_features, test_user_fold[i])
+for i in all_users:
+    train_features, test_features = train_test_split(all_features, [i])
 
-        train_features, train_labels = flatten(train_features)
-        test_features, test_labels = flatten(test_features)
+    train_features, train_labels = flatten(train_features)
+    test_features, test_labels = flatten(test_features)
 
-        run_knn(train_features, train_labels, test_features, test_labels)
-
-
-run()
+    run_knn(train_features, train_labels, test_features, test_labels)

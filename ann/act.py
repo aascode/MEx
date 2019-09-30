@@ -20,20 +20,13 @@ id_list = range(len(activity_list))
 activity_id_dict = dict(zip(activity_list, id_list))
 
 path = '/Volumes/1708903/MEx/Data/act/'
-results_file = '/Volumes/1708903/MEx/results/ann_act.csv'
+results_file = '/Volumes/1708903/MEx/results_lopo/ann_act.csv'
 
 frames_per_second = 100
 window = 5
 increment = 2
 dct_length = 60
 feature_length = dct_length * 3
-
-test_user_fold = [['01', '02', '03', '04', '05'],
-                  ['06', '07', '08', '09', '10'],
-                  ['11', '12', '13', '14', '15'],
-                  ['16', '17', '18', '19', '20'],
-                  ['21', '22', '23', '24', '25'],
-                  ['26', '27', '28', '29', '30']]
 
 ac_min_length = 95*window
 ac_max_length = 100*window

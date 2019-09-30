@@ -16,15 +16,8 @@ activity_list = ['01', '02', '03', '04', '05', '06', '07']
 id_list = range(len(activity_list))
 activity_id_dict = dict(zip(activity_list, id_list))
 
-path = '/Volumes/1708903/MEx/Data/dc_scaled/0.05/'
-results_file = '/Volumes/1708903/MEx/results/p_vs_np/np_dc.csv'
-
-test_user_fold = [['01', '02', '03', '04', '05'],
-                  ['06', '07', '08', '09', '10'],
-                  ['11', '12', '13', '14', '15'],
-                  ['16', '17', '18', '19', '20'],
-                  ['21', '22', '23', '24', '25'],
-                  ['26', '27', '28', '29', '30']]
+path = '/home/mex/data/dc_scaled/0.05_0.05/'
+results_file = '/home/mex/results_lopo/p_vs_np/dc.csv'
 
 frames_per_second = 1
 window = 5
@@ -215,22 +208,20 @@ def pad_features(_features):
 
 def build_2D_model():
     _input = Input(shape=(12, 16 * window * frames_per_second, 1))
-    x = Conv2D(32, kernel_size=(1,5), activation='relu')(_input)
+    x = Conv2D(32, kernel_size=(3,3), activation='relu')(_input)
     x = MaxPooling2D(pool_size=2, data_format='channels_last')(x)
     x = BatchNormalization()(x)
-    x = Conv2D(64, kernel_size=(1,5), activation='relu')(x)
-    x = MaxPooling2D(pool_size=2, data_format='channels_last')(x)
-    x = BatchNormalization()(x)
-    x = Conv2D(128, kernel_size=(1,5), activation='relu')(x)
+    x = Conv2D(64, kernel_size=(3,3), activation='relu')(x)
     x = MaxPooling2D(pool_size=2, data_format='channels_last')(x)
     x = BatchNormalization()(x)
     x = Flatten()(x)
+    x = Dense(600, activation='relu')(x)
+    x = BatchNormalization()(x)
     x = Dense(100, activation='relu')(x)
     x = BatchNormalization()(x)
     x = Dense(len(activity_list), activation='softmax')(x)
 
     model = Model(inputs=_input, outputs=x)
-    model.summary()
     return model
 
 
@@ -258,11 +249,11 @@ def _run_(_train_features, _train_labels, _test_features, _test_labels):
 
     model = build_2D_model()
     model.compile(optimizer='adadelta', loss='categorical_crossentropy', metrics=['accuracy'])
-    model.fit(_train_features, _train_labels, verbose=0, batch_size=32, epochs=100, shuffle=True)
+    model.fit(_train_features, _train_labels, verbose=0, batch_size=32, epochs=50, shuffle=True)
     _predict_labels = model.predict(_test_features, batch_size=64, verbose=0)
     f_score = metrics.f1_score(_test_labels.argmax(axis=1), _predict_labels.argmax(axis=1), average='macro')
     accuracy = metrics.accuracy_score(_test_labels.argmax(axis=1), _predict_labels.argmax(axis=1))
-    results = str(accuracy)+',' + str(f_score)
+    results = 'np,'+str(accuracy)+',' + str(f_score)
     print(results)
     write_data(results_file, str(results))
 
@@ -273,23 +264,20 @@ def _run_(_train_features, _train_labels, _test_features, _test_labels):
     write_data(results_file, str(df_confusion))
 
 
-def run():
-    all_data = read()
-    all_features = extract_features(all_data)
-    all_data = None
-    all_features = pad_features(all_features)
-    all_features = frame_reduce(all_features)
+all_data = read()
+all_features = extract_features(all_data)
+all_data = None
+all_features = pad_features(all_features)
+all_features = frame_reduce(all_features)
+all_users = list(all_features.keys())
 
-    for i in range(len(test_user_fold)):
-        set_random_seed(2)
-        train_features, test_features = train_test_split(all_features, test_user_fold[i])
+for i in all_users:
+    train_features, test_features = train_test_split(all_features, [i])
 
-        train_features, train_labels = flatten(train_features)
-        test_features, test_labels = flatten(test_features)
+    train_features, train_labels = flatten(train_features)
+    test_features, test_labels = flatten(test_features)
 
-        train_labels = np_utils.to_categorical(train_labels, len(activity_list))
-        test_labels = np_utils.to_categorical(test_labels, len(activity_list))
+    train_labels = np_utils.to_categorical(train_labels, len(activity_list))
+    test_labels = np_utils.to_categorical(test_labels, len(activity_list))
 
-        _run_(train_features, train_labels, test_features, test_labels)
-
-run()
+    _run_(train_features, train_labels, test_features, test_labels)
